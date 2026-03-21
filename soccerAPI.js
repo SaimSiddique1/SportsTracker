@@ -1,11 +1,10 @@
 import axios from "axios";
 
-// RapidAPI credentials
 const API_KEY = "b30087d7b9msh0e215936cf1cd32p1dc681jsn6ff77ad2fdb8";
 const API_HOST = "football98.p.rapidapi.com";
 const BASE_URL = "https://football98.p.rapidapi.com";
 
-// Create Axios instance
+// Create axios instance
 const api = axios.create({
   baseURL: BASE_URL,
   headers: {
@@ -15,77 +14,75 @@ const api = axios.create({
 });
 
 /*
-  ==============================
-  API FUNCTIONS
-  ==============================
+==============================
+AXIOS INTERCEPTORS
+==============================
 */
 
-// Get all competitions
+// Request interceptor
+api.interceptors.request.use(
+  (config) => {
+    console.log(`API Request → ${config.baseURL}${config.url}`);
+    return config;
+  },
+  (error) => {
+    return Promise.reject(error);
+  }
+);
+
+// Response interceptor
+api.interceptors.response.use(
+  (response) => {
+    console.log(`API Success ← ${response.config.url}`);
+    return response;
+  },
+  (error) => {
+    let errorMessage = "Unexpected error occurred.";
+
+    if (error.response) {
+      console.error("API Response Error:", error.response.data);
+      errorMessage =
+        error.response.data?.message ||
+        `Server error (${error.response.status})`;
+
+    } else if (error.request) {
+      console.error("API No Response:", error.request);
+      errorMessage = "No response from API server.";
+
+    } else {
+      console.error("API Request Error:", error.message);
+      errorMessage = error.message;
+    }
+
+    return Promise.reject({
+      error: true,
+      message: errorMessage
+    });
+  }
+);
+
+/*
+==============================
+API FUNCTIONS
+==============================
+*/
+
 export const getCompetitions = async () => {
-  try {
-    const response = await api.get("/competitions");
-
-    console.log("Competitions:", response.data);
-    return response.data;
-
-  } catch (error) {
-    console.error("Error fetching competitions:", error.response?.data || error.message);
-    throw error;
-  }
+  const response = await api.get("/competitions");
+  return response.data;
 };
 
-// Get teams in a competition
-export const getTeamsInCompetition = async (competitionName) => {
-  try {
-    const response = await api.get(`/teams/${competitionName}`);
-
-    console.log("Teams:", response.data);
-    return response.data;
-
-  } catch (error) {
-    console.error("Error fetching teams:", error.response?.data || error.message);
-    throw error;
-  }
-};
-
-// Get team details
 export const getTeam = async (teamName) => {
-  try {
-    const response = await api.get(`/team/${teamName}`);
-
-    console.log("Team Data:", response.data);
-    return response.data;
-
-  } catch (error) {
-    console.error("Error fetching team:", error.response?.data || error.message);
-    throw error;
-  }
+  const response = await api.get(`/team/${teamName}`);
+  return response.data;
 };
 
-// Get team squad
 export const getTeamSquad = async (teamName) => {
-  try {
-    const response = await api.get(`/squad/${teamName}`);
-
-    console.log("Squad:", response.data);
-    return response.data;
-
-  } catch (error) {
-    console.error("Error fetching squad:", error.response?.data || error.message);
-    throw error;
-  }
+  const response = await api.get(`/squad/${teamName}`);
+  return response.data;
 };
 
-// Get league table
 export const getLeagueTable = async (competitionName) => {
-  try {
-    const response = await api.get(`/table/${competitionName}`);
-
-    console.log("League Table:", response.data);
-    return response.data;
-
-  } catch (error) {
-    console.error("Error fetching table:", error.response?.data || error.message);
-    throw error;
-  }
+  const response = await api.get(`/table/${competitionName}`);
+  return response.data;
 };
