@@ -4,9 +4,9 @@ function LeagueTable() {
     const [currLeague, setCurrLeague] = useState('LGE');
 
     const leagues = [
-        {id: 'LGE', name: 'League 1'},
-        {id: 'LGE', name: 'League 2'},
-        {id: 'LGE', name: 'League 3'},
+        {id: 'PL', name: 'Premier League'},
+        {id: 'LL', name: 'La Liga'},
+        {id: 'BL', name: 'Bundesliga'},
     ]
 
     const teams = [
