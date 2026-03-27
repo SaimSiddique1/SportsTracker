@@ -1,5 +1,6 @@
 import axios from "axios";
-
+// Load API key from environment variables
+// Note: Ensure you have a .env file with VITE_SOCCER_API_KEY=your_api_key
 const API_KEY = import.meta.env.VITE_SOCCER_API_KEY;
 const API_HOST = "football98.p.rapidapi.com";
 const BASE_URL = "https://football98.p.rapidapi.com";

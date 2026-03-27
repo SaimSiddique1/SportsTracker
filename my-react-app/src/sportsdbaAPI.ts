@@ -1,6 +1,7 @@
 import axios from "axios";
-
-const BASE_URL = "https://www.thesportsdb.com/api/v1/json/3";
+//load API key from .env file, for SPORTSDB 
+const API_KEY = import.meta.env.VITE_SPORTSDB_API_KEY; 
+const BASE_URL = "https://www.thesportsdb.com/api/v1/json/123";
 
 // Create axios instance (no API key required for free tier)
 const api = axios.create({
