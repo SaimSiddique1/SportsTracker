@@ -2,6 +2,7 @@
 import MatchCarousel from './components/MatchCarousel'
 import LeagueTable from './components/LeagueTable'
 import PlayerCard from './components/PlayerCard'
+import RealTimeStats from './components/RealTimeStats'
 
 function App() {
   return (
@@ -47,6 +48,11 @@ function App() {
                   <button className='bg-white/10 border border-white/20 px-8 py-3 font-black text-xs tracking-widest hover:bg-white/20 transition-colors'>
                     Schedules
                   </button>
+                </div>
+
+                <div>
+                  <p>Real-Time Stats</p>
+                  <RealTimeStats />
                 </div>
               </div>
             </div>
