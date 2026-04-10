@@ -3,6 +3,7 @@ import MatchCarousel from './components/MatchCarousel'
 import LeagueTable from './components/LeagueTable'
 import PlayerCard from './components/PlayerCard'
 import RealTimeStats from './components/RealTimeStats'
+//import LoginPage from './assets/pages/LoginPage'
 
 function App() {
   return (
