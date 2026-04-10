@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { getLeagueTable } from "./soccerAPI";
+import { getLeagueTable } from "../soccerAPI.ts";
 
 interface Team {
   name: string;

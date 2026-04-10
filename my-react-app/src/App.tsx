@@ -49,11 +49,6 @@ function App() {
                     Schedules
                   </button>
                 </div>
-
-                <div>
-                  <p>Real-Time Stats</p>
-                  <RealTimeStats />
-                </div>
               </div>
             </div>
 
@@ -70,6 +65,7 @@ function App() {
             <div className='bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 p-6'>
               <h3 className='font-black text-xl mb-6 tracking-tighter border-b-4 border-yellow-400 inline-block'>League Table</h3>
               <LeagueTable/>
+              <RealTimeStats/>
             </div>
           </aside>
         </main>
