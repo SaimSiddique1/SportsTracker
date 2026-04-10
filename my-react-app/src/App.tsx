@@ -3,7 +3,7 @@ import MatchCarousel from './components/MatchCarousel'
 import LeagueTable from './components/LeagueTable'
 import PlayerCard from './components/PlayerCard'
 import RealTimeStats from './components/RealTimeStats'
-//import LoginPage from './assets/pages/LoginPage'
+import LoginRegister from './components/LoginRegister'
 
 function App() {
   return (
@@ -27,9 +27,7 @@ function App() {
             <button className='p-2 border-2 border-black dark:border-white bg-white dark:bg-black font-black w-10 h-10 transition-all'>
               Mode
             </button>
-            <button className='px-8 py-3 bg-yellow-400 text-black border-2 border-black font-black hover:shadow-none hover:translate-x- hover:translate-y- transition-all text-xs tracking-[0.2em]'>
-              Login / Register
-            </button>
+            <LoginRegister/>
           </div>
         </nav>
 
