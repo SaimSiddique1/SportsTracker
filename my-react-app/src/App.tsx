@@ -1,13 +1,16 @@
 //import {  } from 'react'
+import {BrowserRouter as Router, Routes, Route, Navigate} from "react-router-dom";
 import MatchCarousel from './components/MatchCarousel'
 import LeagueTable from './components/LeagueTable'
 import PlayerCard from './components/PlayerCard'
 import RealTimeStats from './components/RealTimeStats'
 import LoginRegister from './components/LoginRegister'
+import HomePage from "./assets/pages/HomePage";
+import SearchResultsPage from "./assets/pages/SearchResultsPage";
 
 function App() {
   return (
-    <div>
+    <Router>
       <div className='min-h-screen transition-colors duration-300 bg-slate-50 dark:bg-black text-slate-900 dark:text-zinc-100 selection:bg-yellow-400'>
         {/* Nav Bar/Header */}
         <nav className='sticky top-0 z-50 flex items-center justify-between px-8 py-4 bg-white/90 dark:bg-black/90 backdrop-blur-md border-b-4 border-black dark:border-zinc-800'>
@@ -19,7 +22,12 @@ function App() {
 
           {/* Search Bar */}
           <div className='flex-1 max-w-lg mx-12 hidden lg:block'>
-            <input type='text' placeholder='Search players, teams, and more...' className='w-full bg-slate-100 dark:bg-zinc-900 border-2 border-black dark:border-zinc-700 px-6 py-3 focus:outline-none focus:bg-yellow-50 dark:focus:bg-zinc-800 transition-all text-xs font-black'/>
+            {/*<input type='text' placeholder='Search players, teams, and more...' className='w-full bg-slate-100 dark:bg-zinc-900 border-2 border-black dark:border-zinc-700 px-6 py-3 focus:outline-none focus:bg-yellow-50 dark:focus:bg-zinc-800 transition-all text-xs font-black'/>*/}
+            <Routes>
+              <Route path="/" element={<HomePage />} />
+              <Route path="/search" element={<SearchResultsPage />} />
+              <Route path="*" element={<Navigate to="/" replace />} />
+            </Routes>
           </div>
 
           {/* Light/Dark Mode and Registration/Login */}
@@ -69,7 +77,7 @@ function App() {
           </aside>
         </main>
       </div>
-    </div>
+    </Router>
   )
 }
 
