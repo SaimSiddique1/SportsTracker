@@ -1,6 +1,6 @@
 import { useState } from "react";
 
-function LoginPage({ apiBaseUrl = "http://localhost:5001" }) {
+function LoginPage({ apiBaseUrl = "http://localhost:5000" }) {
   const [formData, setFormData] = useState({
     email: "",
     password: "",
