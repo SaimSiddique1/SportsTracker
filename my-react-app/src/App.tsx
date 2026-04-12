@@ -6,7 +6,7 @@ import RealTimeStats from "./components/RealTimeStats";
 import LoginRegister from "./components/LoginRegister";
 import SearchBar from "./components/SearchBar";
 import type { SearchMode } from "./components/SearchBar";
-import HomePage from "./assets/pages/HomePage";
+//import HomePage from "./assets/pages/HomePage";
 import SearchResultsPage from "./assets/pages/SearchResultsPage";
 import "./App.css";
 
@@ -40,21 +40,21 @@ function AppLayout() {
         </div>
 
         <div className="flex items-center gap-4">
-          <button className="h-10 w-10 border-2 border-black bg-white p-2 font-black transition-all dark:border-white dark:bg-black">
+          {/*<button className="h-10 w-10 border-2 border-black bg-white p-2 font-black transition-all dark:border-white dark:bg-black">
             Mode
-          </button>
+          </button>*/}
           <LoginRegister />
         </div>
       </nav>
 
-      <div className="mx-auto flex max-w-7xl px-8 pt-4">
+      {/*<div className="mx-auto flex max-w-7xl px-8 pt-4">
         <button
           onClick={() => navigate("/")}
           className="border-2 border-black bg-white px-4 py-2 text-xs font-black uppercase tracking-[0.2em] transition-all hover:bg-yellow-400"
         >
           Back To Home
         </button>
-      </div>
+      </div>*/}
 
       <Routes>
         <Route
@@ -89,7 +89,7 @@ function AppLayout() {
                     </div>
                   </div>
 
-                  <HomePage />
+                  {/*<HomePage />*/}
 
                   <div>
                     <h3 className="mb-6 text-2xl font-black tracking-tighter">Trending Players</h3>

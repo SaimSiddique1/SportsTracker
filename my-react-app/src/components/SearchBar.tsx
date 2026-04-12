@@ -36,20 +36,25 @@ function SearchBar({
 
   return (
     <form className="search-bar" onSubmit={handleSubmit}>
-      <label className="search-bar__label" htmlFor="global-search">
+      {/*<label className="search-bar__label" htmlFor="global-search">
         Search
-      </label>
-      <div className="search-bar__controls">
+      </label>*/}
+      <div className="search-bar__controls flex items-center">
         <input
           id="global-search"
-          className="search-bar__input"
+          className="search-bar__input bg-zinc-900 px-2 py-2 border-2 border-black text-sm mr-1 w-2xl"
           type="search"
           value={query}
           onChange={(event) => setQuery(event.target.value)}
           placeholder={placeholder}
         />
+        <select className='border-2 border-black bg-yellow-400 text-black px-2 py-2 text-xs font-extrabold uppercase' value={mode} onChange={(e) => setMode(e.target.value as SearchMode)}>
+          <option value="players">Players</option>
+          <option value="teams">Teams</option>
+          <option value="competitions">Competitions</option>
+        </select>
       </div>
-      <div className="mt-3 flex flex-wrap gap-2">
+      {/*<div className="mt-3 flex flex-wrap gap-2">
         <button
           className={`border-2 px-3 py-2 text-[10px] font-black uppercase tracking-[0.2em] ${
             mode === 'players' ? 'border-black bg-black text-white' : 'border-black bg-white text-black'
@@ -77,7 +82,7 @@ function SearchBar({
         >
           Search Competitions
         </button>
-      </div>
+      </div>*/}
     </form>
   )
 }
