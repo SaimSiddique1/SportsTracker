@@ -1,30 +1,37 @@
 import { useState } from 'react'
 import type { FormEvent } from 'react'
 
+export type SearchMode = 'players' | 'teams' | 'competitions'
+
 type SearchBarProps = {
   initialValue?: string
-  onSearch: (query: string) => void
+  initialMode?: SearchMode
+  onSearch: (query: string, mode: SearchMode) => void
   placeholder?: string
-  buttonLabel?: string
 }
 
 function SearchBar({
   initialValue = '',
+  initialMode = 'players',
   onSearch,
-  placeholder = 'Search for teams, players, matches',
-  buttonLabel = 'Search',
+  placeholder = 'Search players, teams, or competitions',
 }: SearchBarProps) {
   const [query, setQuery] = useState(initialValue)
+  const [mode, setMode] = useState<SearchMode>(initialMode)
 
-  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault()
-
+  const runSearch = (nextMode: SearchMode) => {
     const trimmedQuery = query.trim()
     if (!trimmedQuery) {
       return
     }
 
-    onSearch(trimmedQuery)
+    setMode(nextMode)
+    onSearch(trimmedQuery, nextMode)
+  }
+
+  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    runSearch(mode)
   }
 
   return (
@@ -41,8 +48,34 @@ function SearchBar({
           onChange={(event) => setQuery(event.target.value)}
           placeholder={placeholder}
         />
-        <button className="search-bar__button" type="submit">
-          {buttonLabel}
+      </div>
+      <div className="mt-3 flex flex-wrap gap-2">
+        <button
+          className={`border-2 px-3 py-2 text-[10px] font-black uppercase tracking-[0.2em] ${
+            mode === 'players' ? 'border-black bg-black text-white' : 'border-black bg-white text-black'
+          }`}
+          type="button"
+          onClick={() => runSearch('players')}
+        >
+          Search Players
+        </button>
+        <button
+          className={`border-2 px-3 py-2 text-[10px] font-black uppercase tracking-[0.2em] ${
+            mode === 'teams' ? 'border-black bg-yellow-400 text-black' : 'border-black bg-white text-black'
+          }`}
+          type="button"
+          onClick={() => runSearch('teams')}
+        >
+          Search Teams
+        </button>
+        <button
+          className={`border-2 px-3 py-2 text-[10px] font-black uppercase tracking-[0.2em] ${
+            mode === 'competitions' ? 'border-black bg-slate-200 text-black' : 'border-black bg-white text-black'
+          }`}
+          type="button"
+          onClick={() => runSearch('competitions')}
+        >
+          Search Competitions
         </button>
       </div>
     </form>

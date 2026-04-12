@@ -1,6 +1,5 @@
 import axios from "axios";
-// Load API key from environment variables
-// Note: Ensure you have a .env file with VITE_SOCCER_API_KEY=your_api_key
+
 const API_KEY = import.meta.env.VITE_SOCCER_API_KEY;
 const API_HOST = "football98.p.rapidapi.com";
 const BASE_URL = "https://football98.p.rapidapi.com";
@@ -60,33 +59,83 @@ api.interceptors.response.use(
   }
 );
 
-/*
-==============================
 API FUNCTIONS
-==============================
 */
+const isEmptyResponse = (data: unknown) => {
+  if (data == null) return true;
+  if (Array.isArray(data)) return data.length === 0;
+  if (typeof data === "string") return data.trim().length === 0;
+  if (typeof data === "object") return Object.keys(data as Record<string, unknown>).length === 0;
+  return false;
+};
 
 export const getCompetitions = async () => {
   const response = await api.get("/competitions");
   return response.data;
 };
 
-export const getTeam = async (teamName: string) => {
-  const response = await api.get(`/team/${teamName}`);
+export const getLeagueTable = async (championship: string) => {
+  const response = await api.get(`/${championship}/table`);
+  if (isEmptyResponse(response.data)) {
+    throw new Error(`Empty league table returned for ${championship}`);
+  }
   return response.data;
 };
 
-export const getTeamSquad = async (teamName: string) => {
-  const response = await api.get(`/squad/${teamName}`);
+export const getSquadByName = async (
+  championship: string,
+  squadName: string
+) => {
+  const response = await api.get(
+    `/${championship}/squadname/${encodeURIComponent(squadName)}`
+  );
+  if (isEmptyResponse(response.data)) {
+    throw new Error(`No squad data returned for ${squadName}`);
+  }
   return response.data;
 };
 
-export const getLeagueTable = async (competitionName: string) => {
-  const response = await api.get(`/${competitionName}`);
+export const getSquadByPosition = async (
+  championship: string,
+  squadPosition: number
+) => {
+  const response = await api.get(
+    `/${championship}/table/squadposition/${squadPosition}`
+  );
+  if (isEmptyResponse(response.data)) {
+    throw new Error(`No squad data returned for position ${squadPosition}`);
+  }
   return response.data;
 };
 
-export const getFixtures = async (competitionName: string) => {
-  const response = await api.get(`/${competitionName}/fixtures`);
+export const getFixtures = async (championship: string) => {
+  const response = await api.get(`/${championship}/fixtures/`);
+  if (isEmptyResponse(response.data)) {
+    throw new Error(`No fixtures returned for ${championship}`);
+  }
+  return response.data;
+};
+
+export const getResults = async (championship: string) => {
+  const response = await api.get(`/${championship}/results/`);
+  if (isEmptyResponse(response.data)) {
+    throw new Error(`No results returned for ${championship}`);
+  }
+  return response.data;
+};
+
+export const getNews = async (championship: string) => {
+  const response = await api.get(`/${championship}/news/`);
+  if (isEmptyResponse(response.data)) {
+    throw new Error(`No news returned for ${championship}`);
+  }
+  return response.data;
+};
+
+export const getTransfers = async (championship: string) => {
+  const response = await api.get(`/${championship}/transfers/`);
+  if (isEmptyResponse(response.data)) {
+    throw new Error(`No transfers returned for ${championship}`);
+  }
   return response.data;
 };

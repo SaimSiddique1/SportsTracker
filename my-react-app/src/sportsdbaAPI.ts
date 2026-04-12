@@ -1,6 +1,7 @@
 import axios from "axios";
 
-const BASE_URL = "https://www.thesportsdb.com/api/v1/json/3";
+const API_KEY = import.meta.env.VITE_SPORTSDB_API_KEY || "123";
+const BASE_URL = `https://www.thesportsdb.com/api/v1/json/${API_KEY}`;
 
 // Axios instance
 const api = axios.create({
@@ -87,7 +88,11 @@ export const getTeamsByLeague = async (leagueName: string) => {
   }
 };
 
-// Get league standings (requires league ID + season)
+export const searchTeam = async (teamName: string) => {
+  const response = await api.get(`/searchteams.php?t=${encodeURIComponent(teamName)}`);
+  return response.data.teams;
+};
+
 export const getLeagueTable = async (leagueId: string, season: string) => {
   try {
     const response = await api.get(
@@ -126,13 +131,6 @@ export const getPlayerStats = async (playerId: string) => {
 
 // Get recent matches in a league
 export const getRecentLeagueMatches = async (leagueId: string) => {
-  try {
-    const response = await api.get(
-      `/eventspastleague.php?id=${leagueId}`
-    );
-    return safeArray(response.data.events);
-  } catch (err: any) {
-    console.error("getRecentLeagueMatches failed:", err.message);
-    return [];
-  }
-};
+  const response = await api.get(`/eventspastleague.php?id=${leagueId}`);
+  return response.data.events;
+}
