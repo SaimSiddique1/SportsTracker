@@ -59,6 +59,8 @@ api.interceptors.response.use(
   }
 );
 
+API FUNCTIONS
+*/
 const isEmptyResponse = (data: unknown) => {
   if (data == null) return true;
   if (Array.isArray(data)) return data.length === 0;
