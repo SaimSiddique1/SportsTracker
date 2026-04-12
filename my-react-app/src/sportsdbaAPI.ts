@@ -2,9 +2,10 @@ import axios from "axios";
 
 const BASE_URL = "https://www.thesportsdb.com/api/v1/json/3";
 
-// Create axios instance (no API key required for free tier)
+// Axios instance
 const api = axios.create({
   baseURL: BASE_URL,
+  timeout: 10000, // prevents hanging requests
 });
 
 /*
@@ -19,9 +20,7 @@ api.interceptors.request.use(
     console.log(`API Request -> ${config.baseURL}${config.url}`);
     return config;
   },
-  (error) => {
-    return Promise.reject(error);
-  }
+  (error) => Promise.reject(error)
 );
 
 // Response interceptor
@@ -32,6 +31,7 @@ api.interceptors.response.use(
   },
   (error) => {
     let errorMessage = "Unexpected error occurred.";
+
     if (error.response) {
       console.error("API Response Error:", error.response.data);
       errorMessage =
@@ -44,6 +44,7 @@ api.interceptors.response.use(
       console.error("API Request Error:", error.message);
       errorMessage = error.message;
     }
+
     return Promise.reject({
       error: true,
       message: errorMessage,
@@ -53,31 +54,85 @@ api.interceptors.response.use(
 
 /*
 ==============================
+HELPERS
+==============================
+*/
+
+// Prevent null crashes
+const safeArray = (data: any) => (Array.isArray(data) ? data : []);
+
+// Optional: Common league IDs (very useful for your UI)
+export const LEAGUES = {
+  EPL: "4328",
+  LALIGA: "4335",
+  SERIE_A: "4332",
+};
+
+/*
+==============================
 API FUNCTIONS
 ==============================
 */
 
+// Get all teams in a league (by name)
 export const getTeamsByLeague = async (leagueName: string) => {
-  const response = await api.get(`/search_all_teams.php?l=${encodeURIComponent(leagueName)}`);
-  return response.data.teams;
+  try {
+    const response = await api.get(
+      `/search_all_teams.php?l=${encodeURIComponent(leagueName)}`
+    );
+    return safeArray(response.data.teams);
+  } catch (err: any) {
+    console.error("getTeamsByLeague failed:", err.message);
+    return [];
+  }
 };
 
+// Get league standings (requires league ID + season)
 export const getLeagueTable = async (leagueId: string, season: string) => {
-  const response = await api.get(`/lookuptable.php?l=${leagueId}&s=${season}`);
-  return response.data.table;
+  try {
+    const response = await api.get(
+      `/lookuptable.php?l=${leagueId}&s=${season}`
+    );
+    return safeArray(response.data.table);
+  } catch (err: any) {
+    console.error("getLeagueTable failed:", err.message);
+    return [];
+  }
 };
 
+// Search players by name
 export const searchPlayer = async (playerName: string) => {
-  const response = await api.get(`/searchplayers.php?p=${encodeURIComponent(playerName)}`);
-  return response.data.player;
+  try {
+    const response = await api.get(
+      `/searchplayers.php?p=${encodeURIComponent(playerName)}`
+    );
+    return safeArray(response.data.player);
+  } catch (err: any) {
+    console.error("searchPlayer failed:", err.message);
+    return [];
+  }
 };
 
+// Get player details by ID
 export const getPlayerStats = async (playerId: string) => {
-  const response = await api.get(`/lookupplayer.php?id=${playerId}`);
-  return response.data.players;
+  try {
+    const response = await api.get(`/lookupplayer.php?id=${playerId}`);
+    return safeArray(response.data.players);
+  } catch (err: any) {
+    console.error("getPlayerStats failed:", err.message);
+    return [];
+  }
 };
 
+// Get recent matches in a league
 export const getRecentLeagueMatches = async (leagueId: string) => {
-  const response = await api.get(`/eventspastleague.php?id=${leagueId}`);
-  return response.data.events;
-}
+  try {
+    const response = await api.get(
+      `/eventspastleague.php?id=${leagueId}`
+    );
+    return safeArray(response.data.events);
+  } catch (err: any) {
+    console.error("getRecentLeagueMatches failed:", err.message);
+    return [];
+  }
+};
