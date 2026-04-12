@@ -1,6 +1,7 @@
 import axios from "axios";
 
-const BASE_URL = "https://www.thesportsdb.com/api/v1/json/3";
+const API_KEY = import.meta.env.VITE_SPORTSDB_API_KEY || "123";
+const BASE_URL = `https://www.thesportsdb.com/api/v1/json/${API_KEY}`;
 
 // Create axios instance (no API key required for free tier)
 const api = axios.create({
@@ -59,6 +60,11 @@ API FUNCTIONS
 
 export const getTeamsByLeague = async (leagueName: string) => {
   const response = await api.get(`/search_all_teams.php?l=${encodeURIComponent(leagueName)}`);
+  return response.data.teams;
+};
+
+export const searchTeam = async (teamName: string) => {
+  const response = await api.get(`/searchteams.php?t=${encodeURIComponent(teamName)}`);
   return response.data.teams;
 };
 

@@ -1,0 +1,27 @@
+{
+"name": "sportstracker",
+"version": "1.0.0",
+"description": "Github Repository for CMSC 447 Group Project Test edit for the SCRUM 21 branch, should only exist here!!!",
+"main": "soccerAPI.js",
+"scripts": {
+  "test": "echo \"Error: no test specified\" && exit 1"
+},
+"repository": {
+  "type": "git",
+  "url": "git+https://github.com/SaimSiddique1/SportsTracker.git"
+},
+"keywords": [],
+"author": "",
+"license": "ISC",
+"type": "commonjs",
+"bugs": {
+  "url": "https://github.com/SaimSiddique1/SportsTracker/issues"
+},
+"homepage": "https://github.com/SaimSiddique1/SportsTracker#readme",
+"devDependencies": {
+  "@testing-library/jest-dom": "^6.9.1",
+  "@testing-library/react": "^16.3.2",
+  "axios": "^1.13.6",
+  "jest": "^30.3.0"
+}
+}
