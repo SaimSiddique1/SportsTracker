@@ -114,15 +114,6 @@ export const getFixtures = async (championship: string) => {
   return response.data;
 };
 
-export const getSquadByPosition = async (
-  championship: string,
-  squadPosition: number
-) => {
-  const response = await api.get(
-    `/${championship}/table/squadposition/${squadPosition}`
-  );
-  if (isEmptyResponse(response.data)) {
-    throw new Error(`No squad data returned for position ${squadPosition}`);
     
 export const getResults = async (championship: string) => {
   const response = await api.get(`/${championship}/results/`);
