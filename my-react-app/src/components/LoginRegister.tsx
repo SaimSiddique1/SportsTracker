@@ -7,6 +7,7 @@ type AuthUser = {
   id?: number;
   username?: string;
   email?: string;
+  role?: string;
   bio?: string;
   favoritePlayer?: string;
   favoriteTeam?: string;
@@ -159,13 +160,15 @@ function LoginRegister() {
     setProfileMessage("");
 
     try {
+      const token = localStorage.getItem("token");
+
       const response = await fetch("http://localhost:5001/api/auth/profile", {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
+          Authorization: token ? `Bearer ${token}` : "",
         },
         body: JSON.stringify({
-          email: user.email,
           username: profileForm.username,
           currentPassword: profileForm.currentPassword,
           newPassword: profileForm.newPassword,
@@ -321,6 +324,9 @@ function LoginRegister() {
                     <h2 className="text-2xl font-black tracking-tight">Your profile</h2>
                     <p className="mt-1 text-xs font-semibold text-slate-500">
                       Update your name, password, and profile preferences.
+                    </p>
+                    <p className="mt-2 inline-block border-2 border-black bg-yellow-400 px-2 py-1 text-[10px] font-black uppercase tracking-[0.2em] text-black">
+                      Role: {user.role || "user"}
                     </p>
                   </div>
                   <button
