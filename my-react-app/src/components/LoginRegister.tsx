@@ -3,6 +3,8 @@ import { createPortal } from "react-dom";
 import LoginPage from "../assets/pages/LoginPage";
 import RegisterPage from "../assets/pages/RegisterPage";
 
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:5001";
+
 type AuthUser = {
   id?: number;
   username?: string;
@@ -159,7 +161,7 @@ function LoginRegister() {
     setProfileMessage("");
 
     try {
-      const response = await fetch("http://localhost:5001/api/auth/profile", {
+      const response = await fetch(`${API_BASE_URL}/api/auth/profile`, {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
@@ -198,7 +200,7 @@ function LoginRegister() {
       window.dispatchEvent(new Event("auth-changed"));
     } catch (error) {
       console.error("Profile update error:", error);
-      setProfileMessage("Could not connect to server. Make sure the backend is running on port 5001.");
+      setProfileMessage("Could not connect to server. Check VITE_API_BASE_URL and make sure the backend is running.");
     } finally {
       setIsSavingProfile(false);
     }
@@ -293,9 +295,9 @@ function LoginRegister() {
                 </div>
 
                 {page === "login" ? (
-                  <LoginPage apiBaseUrl="http://localhost:5001" />
+                  <LoginPage apiBaseUrl={API_BASE_URL} />
                 ) : (
-                  <RegisterPage apiBaseUrl="http://localhost:5001" />
+                  <RegisterPage apiBaseUrl={API_BASE_URL} />
                 )}
               </div>
             </div>,

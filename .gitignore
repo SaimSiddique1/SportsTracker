@@ -1,6 +1,16 @@
 node_modules/
 server/node_modules/
 my-react-app/node_modules/
+dist/
+my-react-app/dist/
+
+.env
+.env.*
 server/.env
+server/.env.*
 my-react-app/.env
+my-react-app/.env.*
+!.env.example
+!server/.env.example
+!my-react-app/.env.example
 .DS_Store
