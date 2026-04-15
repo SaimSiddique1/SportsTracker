@@ -4,6 +4,7 @@ import SearchBar from "../../components/SearchBar";
 import type { SearchMode } from "../../components/SearchBar";
 import {
   getLeagueTable as getSportsDbLeagueTable,
+  getPlayerStats,
   searchPlayer,
   searchTeam,
 } from "../../sportsdbaAPI";
@@ -24,6 +25,185 @@ type PlayerResult = {
   strThumb?: string;
   strPosition?: string;
 };
+
+type PlayerComparisonProfile = {
+  id: string;
+  name: string;
+  team: string;
+  age: string;
+  nationality: string;
+  position: string;
+  height: string;
+  weight: string;
+  goals: string;
+  assists: string;
+};
+
+type ComparisonMetric = {
+  label: string;
+  leftValue: string;
+  rightValue: string;
+};
+
+const EMPTY_VALUE = "N/A";
+
+const toDisplay = (value?: string | null) => {
+  if (!value || !value.trim()) {
+    return EMPTY_VALUE;
+  }
+
+  return value;
+};
+
+const buildPlayerProfile = (
+  fallback: PlayerResult,
+  apiProfile?: Record<string, string | null>
+): PlayerComparisonProfile => {
+  return {
+    id: fallback.idPlayer ?? "",
+    name: toDisplay(apiProfile?.strPlayer ?? fallback.strPlayer),
+    team: toDisplay(apiProfile?.strTeam ?? fallback.strTeam),
+    age: toDisplay(apiProfile?.strAge),
+    nationality: toDisplay(apiProfile?.strNationality),
+    position: toDisplay(apiProfile?.strPosition),
+    height: toDisplay(apiProfile?.strHeight),
+    weight: toDisplay(apiProfile?.strWeight),
+    goals: toDisplay(apiProfile?.intGoals),
+    assists: toDisplay(apiProfile?.intAssists),
+  };
+};
+
+interface PlayerComparisonPanelProps {
+  selectedPlayers: PlayerResult[];
+  onRemovePlayer: (id: string) => void;
+  onResetComparison: () => void;
+}
+
+function PlayerComparisonPanel({
+  selectedPlayers,
+  onRemovePlayer,
+  onResetComparison,
+}: PlayerComparisonPanelProps) {
+  const [profiles, setProfiles] = useState<PlayerComparisonProfile[]>([]);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (selectedPlayers.length !== 2 || !selectedPlayers.every((player) => player.idPlayer)) {
+      setProfiles([]);
+      return;
+    }
+
+    const fetchPlayerProfiles = async () => {
+      setLoading(true);
+
+      try {
+        const responses = await Promise.all(
+          selectedPlayers.map(async (player) => {
+            const players = await getPlayerStats(player.idPlayer!);
+            const profile = Array.isArray(players) ? players[0] : undefined;
+            return buildPlayerProfile(player, profile as Record<string, string | null> | undefined);
+          })
+        );
+
+        setProfiles(responses);
+      } catch (error) {
+        console.error("Unable to load comparison data", error);
+        setProfiles(selectedPlayers.map((player) => buildPlayerProfile(player)));
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchPlayerProfiles();
+  }, [selectedPlayers]);
+
+  const metrics = useMemo<ComparisonMetric[]>(() => {
+    if (profiles.length !== 2) {
+      return [];
+    }
+
+    const [left, right] = profiles;
+
+    return [
+      { label: "Team", leftValue: left.team, rightValue: right.team },
+      { label: "Age", leftValue: left.age, rightValue: right.age },
+      { label: "Position", leftValue: left.position, rightValue: right.position },
+      { label: "Nationality", leftValue: left.nationality, rightValue: right.nationality },
+      { label: "Height", leftValue: left.height, rightValue: right.height },
+      { label: "Weight", leftValue: left.weight, rightValue: right.weight },
+      { label: "Goals", leftValue: left.goals, rightValue: right.goals },
+      { label: "Assists", leftValue: left.assists, rightValue: right.assists },
+    ];
+  }, [profiles]);
+
+  return (
+    <section className="border-2 border-black bg-white p-6 shadow-[6px_6px_0_0_rgba(0,0,0,1)]">
+      <div className="mb-4 flex items-center justify-between">
+        <h3 className="text-xl font-black tracking-tight">Player Comparison</h3>
+        <button
+          onClick={onResetComparison}
+          className="border-2 border-black bg-yellow-300 px-3 py-1 text-xs font-black uppercase tracking-[0.2em]"
+        >
+          Clear
+        </button>
+      </div>
+
+      <div className="mb-6 grid gap-3 md:grid-cols-2">
+        {selectedPlayers.map((player) => (
+          <div key={player.idPlayer} className="flex items-center justify-between border border-slate-200 bg-slate-50 p-3">
+            <div>
+              <p className="font-black">{player.strPlayer || "Unknown Player"}</p>
+              <p className="text-xs font-semibold text-slate-500">{player.strTeam || "No team listed"}</p>
+            </div>
+            <button
+              onClick={() => onRemovePlayer(player.idPlayer ?? "")}
+              className="text-xs font-black uppercase tracking-[0.2em] text-red-700"
+            >
+              Remove
+            </button>
+          </div>
+        ))}
+      </div>
+
+      {selectedPlayers.length < 2 ? (
+        <p className="text-sm font-semibold text-slate-500">
+          Select {2 - selectedPlayers.length} more player to compare age, team, goals, assists, and more.
+        </p>
+      ) : null}
+
+      {loading ? <p className="font-semibold">Loading comparison stats...</p> : null}
+
+      {!loading && metrics.length > 0 ? (
+        <div className="overflow-x-auto">
+          <table className="min-w-full border-collapse text-left">
+            <thead>
+              <tr className="border-b-2 border-black text-xs uppercase tracking-[0.2em] text-slate-500">
+                <th className="py-2 pr-4">Metric</th>
+                <th className="py-2 pr-4">{profiles[0]?.name}</th>
+                <th className="py-2">{profiles[1]?.name}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {metrics.map((metric) => (
+                <tr key={metric.label} className="border-b border-slate-200 text-sm">
+                  <td className="py-3 pr-4 font-black">{metric.label}</td>
+                  <td className="py-3 pr-4 font-semibold">{metric.leftValue}</td>
+                  <td className="py-3 font-semibold">{metric.rightValue}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      ) : null}
+
+      {!loading && selectedPlayers.length === 2 ? (
+        <p className="mt-4 text-xs font-semibold text-slate-500">
+          Note: Goals/assists depend on availability from TheSportsDB player profile endpoint.
+        </p>
+      ) : null}
+    </section>
+  );
+}
 
 type TableRow = {
   intRank?: string | number;
@@ -92,8 +272,10 @@ function SearchResultsPage() {
 
   const query = searchParams.get("q")?.trim() ?? "";
   const mode = (searchParams.get("mode") as SearchMode | null) ?? "players";
+  const comparePlayerName = searchParams.get("compare")?.trim() ?? "";
 
   const [players, setPlayers] = useState<PlayerResult[]>([]);
+  const [selectedComparePlayers, setSelectedComparePlayers] = useState<PlayerResult[]>([]);
   const [teams, setTeams] = useState<TeamResult[]>([]);
   const [selectedCompetition, setSelectedCompetition] = useState<Competition | null>(null);
   const [competitionTable, setCompetitionTable] = useState<TableRow[]>([]);
@@ -135,7 +317,25 @@ function SearchResultsPage() {
       try {
         if (mode === "players") {
           const playerResults = await searchPlayer(query).catch(() => []);
-          setPlayers(Array.isArray(playerResults) ? playerResults.slice(0, 8) : []);
+          const nextPlayers = Array.isArray(playerResults) ? playerResults.slice(0, 8) : [];
+          setPlayers(nextPlayers);
+
+          if (comparePlayerName) {
+            const normalizedCompareName = comparePlayerName.toLowerCase();
+            const comparePlayer =
+              nextPlayers.find((player) => player.strPlayer?.toLowerCase() === normalizedCompareName) ??
+              nextPlayers.find((player) => player.strPlayer?.toLowerCase().includes(normalizedCompareName));
+
+            if (comparePlayer?.idPlayer) {
+              setSelectedComparePlayers((current) => {
+                if (current.some((player) => player.idPlayer === comparePlayer.idPlayer)) {
+                  return current;
+                }
+
+                return [comparePlayer, ...current].slice(0, 2);
+              });
+            }
+          }
         }
 
         if (mode === "teams") {
@@ -159,7 +359,7 @@ function SearchResultsPage() {
     };
 
     fetchResults();
-  }, [mode, query, matchingCompetitions]);
+  }, [mode, query, matchingCompetitions, comparePlayerName]);
 
   useEffect(() => {
     if (!selectedCompetition) {
@@ -187,12 +387,35 @@ function SearchResultsPage() {
     fetchTable();
   }, [selectedCompetition]);
 
+  const addPlayerToCompare = (player: PlayerResult) => {
+    if (!player.idPlayer) {
+      return;
+    }
+
+    setSelectedComparePlayers((current) => {
+      if (current.some((item) => item.idPlayer === player.idPlayer) || current.length >= 2) {
+        return current;
+      }
+
+      return [...current, player];
+    });
+  };
+
+  const removePlayerFromCompare = (playerId: string) => {
+    setSelectedComparePlayers((current) => current.filter((item) => item.idPlayer !== playerId));
+  };
+
+  const clearComparePlayers = () => {
+    setSelectedComparePlayers([]);
+  };
+
   return (
     <main className="mx-auto max-w-6xl px-8 py-10">
-      <section className="border-4 border-black bg-yellow-400 p-8 shadow-[10px_10px_0_0_rgba(0,0,0,1)]">
+      <section className="border-4 border-black bg-white p-8 shadow-[10px_10px_0_0_rgba(0,0,0,1)]">
         <h1 className="mb-2 text-3xl font-black tracking-tight">Global Search</h1>
         <p className="mb-6 text-sm font-semibold text-slate-600">
           Search for players, teams, or competitions using the buttons below.
+          {selectedComparePlayers.length === 1 ? " One player is selected, search for another player to compare." : ""}
         </p>
 
         <SearchBar
@@ -229,12 +452,27 @@ function SearchResultsPage() {
                           NO IMG
                         </div>
                       )}
-                      <div>
-                        <h3 className="font-black">{player.strPlayer}</h3>
-                        <p className="text-sm font-semibold">{player.strTeam || "No team listed"}</p>
-                        <p className="text-xs uppercase tracking-[0.2em] text-slate-500">
-                          {player.strPosition || player.strSport || "Profile"}
-                        </p>
+                      <div className="flex flex-1 flex-col justify-between">
+                        <div>
+                          <h3 className="font-black">{player.strPlayer}</h3>
+                          <p className="text-sm font-semibold">{player.strTeam || "No team listed"}</p>
+                          <p className="text-xs uppercase tracking-[0.2em] text-slate-500">
+                            {player.strPosition || player.strSport || "Profile"}
+                          </p>
+                        </div>
+                        <button
+                          onClick={() => addPlayerToCompare(player)}
+                          disabled={
+                            !player.idPlayer ||
+                            selectedComparePlayers.some((selected) => selected.idPlayer === player.idPlayer) ||
+                            selectedComparePlayers.length >= 2
+                          }
+                          className="mt-3 w-fit border-2 border-black bg-yellow-300 px-3 py-1 text-[10px] font-black uppercase tracking-[0.2em] disabled:cursor-not-allowed disabled:opacity-50"
+                        >
+                          {selectedComparePlayers.some((selected) => selected.idPlayer === player.idPlayer)
+                            ? "Selected"
+                            : "Add to Compare"}
+                        </button>
                       </div>
                     </article>
                   ))}
@@ -242,6 +480,14 @@ function SearchResultsPage() {
               ) : (
                 <p className="font-semibold text-slate-500">No players found for this search.</p>
               )}
+
+              <div className="mt-6">
+                <PlayerComparisonPanel
+                  selectedPlayers={selectedComparePlayers}
+                  onRemovePlayer={removePlayerFromCompare}
+                  onResetComparison={clearComparePlayers}
+                />
+              </div>
             </div>
           ) : null}
 

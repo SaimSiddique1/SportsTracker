@@ -1,6 +1,8 @@
 import { useState } from "react";
 
-function LoginPage({ apiBaseUrl = "http://localhost:5000" }) {
+const DEFAULT_API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:5001";
+
+function LoginPage({ apiBaseUrl = DEFAULT_API_BASE_URL }) {
   const [formData, setFormData] = useState({
     email: "",
     password: "",
@@ -41,7 +43,7 @@ function LoginPage({ apiBaseUrl = "http://localhost:5000" }) {
       setMessage(data.message || "Login complete.");
     } catch (error) {
       console.error("Login error:", error);
-      setMessage("Could not connect to server. Make sure the backend is running on port 5001.");
+      setMessage("Could not connect to server. Check VITE_API_BASE_URL and make sure the backend is running.");
     } finally {
       setIsLoading(false);
     }
