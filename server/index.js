@@ -8,6 +8,9 @@ const cors = require("cors");
 require("dotenv").config();
 
 const authRoutes = require("./routes/auth");
+const adminRoutes = require("./routes/admin");
+const systemConfigRoutes = require("./routes/systemConfig");
+const { store } = require("./store");
 
 const app = express();
 
@@ -15,13 +18,20 @@ app.use(cors());
 app.use(express.json());
 
 app.use("/api/auth", authRoutes);
+app.use("/api/admin", adminRoutes);
+app.use("/api/system-config", systemConfigRoutes);
 
 app.get("/", (req, res) => {
   res.send("Auth API running");
 });
 
-const PORT = process.env.PORT || 5000;
+const PORT = process.env.PORT || 5001;
 
-app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
+store.init().then(() => {
+  app.listen(PORT, () => {
+    console.log(`Server running on port ${PORT}`);
+  });
+}).catch((error) => {
+  console.error("Failed to initialize data store:", error);
+  process.exit(1);
 });

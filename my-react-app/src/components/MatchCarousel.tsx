@@ -23,8 +23,8 @@ function MatchCarousel() {
                 setLoading(true);
                 const data = await getRecentLeagueMatches('4328');
                 if(data) setMatches(data);
-            } catch(err:any) {
-                setError(err.message || "Failed to load data.");
+            } catch(err: unknown) {
+                setError(err instanceof Error ? err.message : "Failed to load data.");
             } finally {
                 setLoading(false);
             }

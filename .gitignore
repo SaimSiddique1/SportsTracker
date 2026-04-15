@@ -4,3 +4,8 @@ my-react-app/node_modules/
 server/.env
 my-react-app/.env
 .DS_Store
+server/data/app-data.json
+server/*.log
+server/*.err
+my-react-app/*.log
+my-react-app/*.err
