@@ -1,4 +1,4 @@
-import { BrowserRouter as Router, Navigate, Route, Routes, useNavigate } from "react-router-dom";
+import { BrowserRouter as Router, Navigate, Route, Routes, useLocation, useNavigate } from "react-router-dom";
 import MatchCarousel from "./components/MatchCarousel";
 import LeagueTable from "./components/LeagueTable";
 import PlayerCard from "./components/PlayerCard";
@@ -12,8 +12,13 @@ import "./App.css";
 
 function AppLayout() {
   const navigate = useNavigate();
+  const location = useLocation();
   const handleSearch = (query: string, mode: SearchMode) => {
     navigate(`/search?q=${encodeURIComponent(query)}&mode=${mode}`);
+  };
+  const startPlayerComparison = (playerName: string) => {
+    const encodedName = encodeURIComponent(playerName);
+    navigate(`/search?q=${encodedName}&mode=players&compare=${encodedName}`);
   };
 
   return (
@@ -36,6 +41,7 @@ function AppLayout() {
           <SearchBar
             onSearch={handleSearch}
             placeholder="Search leagues or players"
+            showFilters={false}
           />
         </div>
 
@@ -47,14 +53,16 @@ function AppLayout() {
         </div>
       </nav>
 
-      {/*<div className="mx-auto flex max-w-7xl px-8 pt-4">
-        <button
-          onClick={() => navigate("/")}
-          className="border-2 border-black bg-white px-4 py-2 text-xs font-black uppercase tracking-[0.2em] transition-all hover:bg-yellow-400"
-        >
-          Back To Home
-        </button>
-      </div>*/}
+      {location.pathname !== "/" ? (
+        <div className="mx-auto flex max-w-7xl px-8 pt-4">
+          <button
+            onClick={() => navigate("/")}
+            className="border-2 border-black bg-white px-4 py-2 text-xs font-black uppercase tracking-[0.2em] transition-all hover:bg-yellow-400"
+          >
+            Back To Home
+          </button>
+        </div>
+      ) : null}
 
       <Routes>
         <Route
@@ -94,8 +102,22 @@ function AppLayout() {
                   <div>
                     <h3 className="mb-6 text-2xl font-black tracking-tighter">Trending Players</h3>
                     <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-                      <PlayerCard name="Lionel Messi" team="Inter Miami" goals={18} assists={11} />
-                      <PlayerCard name="Erling Haaland" team="Manchester City" goals={21} assists={4} />
+                      <PlayerCard
+                        name="Lionel Messi"
+                        team="Inter Miami"
+                        goals={18}
+                        assists={11}
+                        imageUrl="https://commons.wikimedia.org/wiki/Special:FilePath/Lionel%20Messi%20NE%20Revolution%20Inter%20Miami%207.9.25-183.jpg?width=640"
+                        onCompare={() => startPlayerComparison("Lionel Messi")}
+                      />
+                      <PlayerCard
+                        name="Erling Haaland"
+                        team="Manchester City"
+                        goals={21}
+                        assists={4}
+                        imageUrl="https://commons.wikimedia.org/wiki/Special:FilePath/Erling-Haaland-2023.jpg?width=640"
+                        onCompare={() => startPlayerComparison("Erling Haaland")}
+                      />
                     </div>
                   </div>
                 </section>

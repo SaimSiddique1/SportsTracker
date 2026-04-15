@@ -8,6 +8,7 @@ type SearchBarProps = {
   initialMode?: SearchMode
   onSearch: (query: string, mode: SearchMode) => void
   placeholder?: string
+  showFilters?: boolean
 }
 
 function SearchBar({
@@ -15,6 +16,7 @@ function SearchBar({
   initialMode = 'players',
   onSearch,
   placeholder = 'Search players, teams, or competitions',
+  showFilters = true,
 }: SearchBarProps) {
   const [query, setQuery] = useState(initialValue)
   const [mode, setMode] = useState<SearchMode>(initialMode)
@@ -42,7 +44,7 @@ function SearchBar({
       <div className="search-bar__controls flex items-center">
         <input
           id="global-search"
-          className="search-bar__input bg-zinc-900 px-2 py-2 border-2 border-black text-sm mr-1 w-2xl"
+          className="search-bar__input mr-1 w-full border-2 border-black bg-white px-2 py-2 text-sm text-black outline-none placeholder:text-slate-500 focus:bg-yellow-50 md:w-2xl"
           type="search"
           value={query}
           onChange={(event) => setQuery(event.target.value)}
@@ -54,35 +56,40 @@ function SearchBar({
           <option value="competitions">Competitions</option>
         </select>
       </div>
-      {/*<div className="mt-3 flex flex-wrap gap-2">
-        <button
-          className={`border-2 px-3 py-2 text-[10px] font-black uppercase tracking-[0.2em] ${
-            mode === 'players' ? 'border-black bg-black text-white' : 'border-black bg-white text-black'
-          }`}
-          type="button"
-          onClick={() => runSearch('players')}
-        >
-          Search Players
-        </button>
-        <button
-          className={`border-2 px-3 py-2 text-[10px] font-black uppercase tracking-[0.2em] ${
-            mode === 'teams' ? 'border-black bg-yellow-400 text-black' : 'border-black bg-white text-black'
-          }`}
-          type="button"
-          onClick={() => runSearch('teams')}
-        >
-          Search Teams
-        </button>
-        <button
-          className={`border-2 px-3 py-2 text-[10px] font-black uppercase tracking-[0.2em] ${
-            mode === 'competitions' ? 'border-black bg-slate-200 text-black' : 'border-black bg-white text-black'
-          }`}
-          type="button"
-          onClick={() => runSearch('competitions')}
-        >
-          Search Competitions
-        </button>
-      </div>*/}
+      {showFilters ? (
+        <div className="mt-3 flex flex-wrap items-center gap-2">
+          <span className="text-xs font-black uppercase tracking-[0.2em] text-slate-600">
+            Filter:
+          </span>
+          <button
+            className={`border-2 px-3 py-2 text-[10px] font-black uppercase tracking-[0.2em] ${
+              mode === 'players' ? 'border-black bg-black text-white' : 'border-black bg-white text-black'
+            }`}
+            type="button"
+            onClick={() => runSearch('players')}
+          >
+            Search Players
+          </button>
+          <button
+            className={`border-2 px-3 py-2 text-[10px] font-black uppercase tracking-[0.2em] ${
+              mode === 'teams' ? 'border-black bg-yellow-400 text-black' : 'border-black bg-white text-black'
+            }`}
+            type="button"
+            onClick={() => runSearch('teams')}
+          >
+            Search Teams
+          </button>
+          <button
+            className={`border-2 px-3 py-2 text-[10px] font-black uppercase tracking-[0.2em] ${
+              mode === 'competitions' ? 'border-black bg-slate-200 text-black' : 'border-black bg-white text-black'
+            }`}
+            type="button"
+            onClick={() => runSearch('competitions')}
+          >
+            Search Competitions
+          </button>
+        </div>
+      ) : null}
     </form>
   )
 }

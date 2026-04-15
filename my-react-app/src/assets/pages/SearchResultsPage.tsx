@@ -272,6 +272,7 @@ function SearchResultsPage() {
 
   const query = searchParams.get("q")?.trim() ?? "";
   const mode = (searchParams.get("mode") as SearchMode | null) ?? "players";
+  const comparePlayerName = searchParams.get("compare")?.trim() ?? "";
 
   const [players, setPlayers] = useState<PlayerResult[]>([]);
   const [selectedComparePlayers, setSelectedComparePlayers] = useState<PlayerResult[]>([]);
@@ -316,7 +317,25 @@ function SearchResultsPage() {
       try {
         if (mode === "players") {
           const playerResults = await searchPlayer(query).catch(() => []);
-          setPlayers(Array.isArray(playerResults) ? playerResults.slice(0, 8) : []);
+          const nextPlayers = Array.isArray(playerResults) ? playerResults.slice(0, 8) : [];
+          setPlayers(nextPlayers);
+
+          if (comparePlayerName) {
+            const normalizedCompareName = comparePlayerName.toLowerCase();
+            const comparePlayer =
+              nextPlayers.find((player) => player.strPlayer?.toLowerCase() === normalizedCompareName) ??
+              nextPlayers.find((player) => player.strPlayer?.toLowerCase().includes(normalizedCompareName));
+
+            if (comparePlayer?.idPlayer) {
+              setSelectedComparePlayers((current) => {
+                if (current.some((player) => player.idPlayer === comparePlayer.idPlayer)) {
+                  return current;
+                }
+
+                return [comparePlayer, ...current].slice(0, 2);
+              });
+            }
+          }
         }
 
         if (mode === "teams") {
@@ -340,7 +359,7 @@ function SearchResultsPage() {
     };
 
     fetchResults();
-  }, [mode, query, matchingCompetitions]);
+  }, [mode, query, matchingCompetitions, comparePlayerName]);
 
   useEffect(() => {
     if (!selectedCompetition) {
@@ -396,6 +415,7 @@ function SearchResultsPage() {
         <h1 className="mb-2 text-3xl font-black tracking-tight">Global Search</h1>
         <p className="mb-6 text-sm font-semibold text-slate-600">
           Search for players, teams, or competitions using the buttons below.
+          {selectedComparePlayers.length === 1 ? " One player is selected, search for another player to compare." : ""}
         </p>
 
         <SearchBar
