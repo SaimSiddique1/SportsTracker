@@ -24,6 +24,9 @@ function LoginPage({ apiBaseUrl = DEFAULT_API_BASE_URL }) {
     setMessage("");
 
     try {
+      localStorage.removeItem("token");
+      localStorage.removeItem("user");
+
       const response = await fetch(`${apiBaseUrl}/api/auth/login`, {
         method: "POST",
         headers: {
@@ -38,11 +41,18 @@ function LoginPage({ apiBaseUrl = DEFAULT_API_BASE_URL }) {
         localStorage.setItem("token", data.token);
         localStorage.setItem("user", JSON.stringify(data.user));
         window.dispatchEvent(new Event("auth-changed"));
+      } else {
+        localStorage.removeItem("token");
+        localStorage.removeItem("user");
+        window.dispatchEvent(new Event("auth-changed"));
       }
 
       setMessage(data.message || "Login complete.");
     } catch (error) {
       console.error("Login error:", error);
+      localStorage.removeItem("token");
+      localStorage.removeItem("user");
+      window.dispatchEvent(new Event("auth-changed"));
       setMessage("Could not connect to server. Check VITE_API_BASE_URL and make sure the backend is running.");
     } finally {
       setIsLoading(false);

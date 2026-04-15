@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
-import LoginPage from "../assets/pages/LoginPage";
-import RegisterPage from "../assets/pages/RegisterPage";
+import LoginPage from "../assets/pages/LoginPage.jsx";
+import RegisterPage from "../assets/pages/RegisterPage.jsx";
 
 type AuthUser = {
   id?: number;
@@ -65,8 +65,10 @@ function LoginRegister() {
   useEffect(() => {
     const syncUser = () => {
       const rawUser = localStorage.getItem("user");
+      const token = localStorage.getItem("token");
 
-      if (!rawUser) {
+      if (!rawUser || !token) {
+        localStorage.removeItem("user");
         setUser(null);
         return;
       }
