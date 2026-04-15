@@ -3,12 +3,11 @@ import { createPortal } from "react-dom";
 import LoginPage from "../assets/pages/LoginPage";
 import RegisterPage from "../assets/pages/RegisterPage";
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:5001";
-
 type AuthUser = {
   id?: number;
   username?: string;
   email?: string;
+  role?: string;
   bio?: string;
   favoritePlayer?: string;
   favoriteTeam?: string;
@@ -161,13 +160,15 @@ function LoginRegister() {
     setProfileMessage("");
 
     try {
-      const response = await fetch(`${API_BASE_URL}/api/auth/profile`, {
+      const token = localStorage.getItem("token");
+
+      const response = await fetch("http://localhost:5001/api/auth/profile", {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
+          Authorization: token ? `Bearer ${token}` : "",
         },
         body: JSON.stringify({
-          email: user.email,
           username: profileForm.username,
           currentPassword: profileForm.currentPassword,
           newPassword: profileForm.newPassword,
@@ -200,7 +201,7 @@ function LoginRegister() {
       window.dispatchEvent(new Event("auth-changed"));
     } catch (error) {
       console.error("Profile update error:", error);
-      setProfileMessage("Could not connect to server. Check VITE_API_BASE_URL and make sure the backend is running.");
+      setProfileMessage("Could not connect to server. Make sure the backend is running on port 5001.");
     } finally {
       setIsSavingProfile(false);
     }
@@ -295,9 +296,9 @@ function LoginRegister() {
                 </div>
 
                 {page === "login" ? (
-                  <LoginPage apiBaseUrl={API_BASE_URL} />
+                  <LoginPage apiBaseUrl="http://localhost:5001" />
                 ) : (
-                  <RegisterPage apiBaseUrl={API_BASE_URL} />
+                  <RegisterPage apiBaseUrl="http://localhost:5001" />
                 )}
               </div>
             </div>,
@@ -323,6 +324,9 @@ function LoginRegister() {
                     <h2 className="text-2xl font-black tracking-tight">Your profile</h2>
                     <p className="mt-1 text-xs font-semibold text-slate-500">
                       Update your name, password, and profile preferences.
+                    </p>
+                    <p className="mt-2 inline-block border-2 border-black bg-yellow-400 px-2 py-1 text-[10px] font-black uppercase tracking-[0.2em] text-black">
+                      Role: {user.role || "user"}
                     </p>
                   </div>
                   <button
