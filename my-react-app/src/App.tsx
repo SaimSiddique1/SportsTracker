@@ -10,17 +10,30 @@ import AdminConfigPanel from "./components/AdminConfigPanel";
 import type { SearchMode } from "./components/SearchBar";
 import HomePage from "./assets/pages/HomePage";
 import SearchResultsPage from "./assets/pages/SearchResultsPage";
+import { searchPlayer } from "./sportsdbaAPI";
 import "./App.css";
 
-const featuredPlayerCatalog: Record<string, { name: string; team: string; goals: number; assists: number }> = {
-  "lionel messi": { name: "Lionel Messi", team: "Inter Miami", goals: 18, assists: 11 },
-  "erling haaland": { name: "Erling Haaland", team: "Manchester City", goals: 21, assists: 4 },
-  "kylian mbappe": { name: "Kylian Mbappe", team: "Real Madrid", goals: 27, assists: 6 },
-  "jude bellingham": { name: "Jude Bellingham", team: "Real Madrid", goals: 15, assists: 10 },
-  "mohamed salah": { name: "Mohamed Salah", team: "Liverpool", goals: 22, assists: 12 },
-  "harry kane": { name: "Harry Kane", team: "Bayern Munich", goals: 24, assists: 7 },
-  "vinicius junior": { name: "Vinicius Junior", team: "Real Madrid", goals: 17, assists: 9 },
-  "bukayo saka": { name: "Bukayo Saka", team: "Arsenal", goals: 16, assists: 11 },
+const buildFallbackImage = (name: string) =>
+  `data:image/svg+xml;utf8,${encodeURIComponent(`
+    <svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256">
+      <rect width="256" height="256" fill="#facc15"/>
+      <rect x="10" y="10" width="236" height="236" fill="none" stroke="#000000" stroke-width="8"/>
+      <text x="50%" y="50%" dominant-baseline="middle" text-anchor="middle"
+        font-family="Arial, sans-serif" font-size="28" font-weight="700" fill="#000000">
+        ${name}
+      </text>
+    </svg>
+  `)}`;
+
+const featuredPlayerCatalog: Record<string, { name: string; team: string; goals: number; assists: number; imageUrl: string }> = {
+  "lionel messi": { name: "Lionel Messi", team: "Inter Miami", goals: 18, assists: 11, imageUrl: buildFallbackImage("Lionel Messi") },
+  "erling haaland": { name: "Erling Haaland", team: "Manchester City", goals: 21, assists: 4, imageUrl: buildFallbackImage("Erling Haaland") },
+  "kylian mbappe": { name: "Kylian Mbappe", team: "Real Madrid", goals: 27, assists: 6, imageUrl: buildFallbackImage("Kylian Mbappe") },
+  "jude bellingham": { name: "Jude Bellingham", team: "Real Madrid", goals: 15, assists: 10, imageUrl: buildFallbackImage("Jude Bellingham") },
+  "mohamed salah": { name: "Mohamed Salah", team: "Liverpool", goals: 22, assists: 12, imageUrl: buildFallbackImage("Mohamed Salah") },
+  "harry kane": { name: "Harry Kane", team: "Bayern Munich", goals: 24, assists: 7, imageUrl: buildFallbackImage("Harry Kane") },
+  "vinicius junior": { name: "Vinicius Junior", team: "Real Madrid", goals: 17, assists: 9, imageUrl: buildFallbackImage("Vinicius Junior") },
+  "bukayo saka": { name: "Bukayo Saka", team: "Arsenal", goals: 16, assists: 11, imageUrl: buildFallbackImage("Bukayo Saka") },
 };
 
 function AppLayout() {
@@ -31,8 +44,8 @@ function AppLayout() {
   const [homeHeroHeadline, setHomeHeroHeadline] = useState("Welcome to Sports Tracker!");
   const [homeHeroSubtext, setHomeHeroSubtext] = useState("Search players, explore league tables, and see recent match stats in one place.");
   const [featuredPlayers, setFeaturedPlayers] = useState([
-    { name: "Lionel Messi", team: "Inter Miami", goals: 18, assists: 11 },
-    { name: "Erling Haaland", team: "Manchester City", goals: 21, assists: 4 },
+    { name: "Lionel Messi", team: "Inter Miami", goals: 18, assists: 11, imageUrl: buildFallbackImage("Lionel Messi") },
+    { name: "Erling Haaland", team: "Manchester City", goals: 21, assists: 4, imageUrl: buildFallbackImage("Erling Haaland") },
   ]);
   const [isMaintenanceLoading, setIsMaintenanceLoading] = useState(true);
 
@@ -90,11 +103,31 @@ function AppLayout() {
               team: "Featured Player",
               goals: 0,
               assists: 0,
+              imageUrl: buildFallbackImage(playerName),
             })
             .slice(0, 2)
           : [];
         if (nextFeaturedPlayers.length > 0) {
-          setFeaturedPlayers(nextFeaturedPlayers);
+          const enrichedPlayers = await Promise.all(
+            nextFeaturedPlayers.map(async (player: { name: string; team: string; goals: number; assists: number; imageUrl: string }) => {
+              try {
+                const results = await searchPlayer(player.name);
+                const match = Array.isArray(results)
+                  ? results.find((result) => result?.strPlayer?.toLowerCase() === player.name.toLowerCase()) ?? results[0]
+                  : null;
+
+                return {
+                  ...player,
+                  team: match?.strTeam || player.team,
+                  imageUrl: match?.strThumb || player.imageUrl,
+                };
+              } catch {
+                return player;
+              }
+            })
+          );
+
+          setFeaturedPlayers(enrichedPlayers);
         }
       } catch (error) {
         console.error("Public config load error:", error);
@@ -157,27 +190,14 @@ function AppLayout() {
           <SearchBar
             onSearch={handleSearch}
             placeholder="Search leagues or players"
+            showFilters={false}
           />
         </div>
 
         <div className="flex items-center gap-4">
-          <button className="h-10 w-10 border-2 border-black bg-white p-2 font-black transition-all dark:border-white dark:bg-black">
-            Mode
-          </button>
           <LoginRegister />
         </div>
       </nav>
-
-      {!showMaintenanceScreen ? (
-        <div className="mx-auto flex max-w-7xl px-8 pt-4">
-          <button
-            onClick={() => navigate("/")}
-            className="border-2 border-black bg-white px-4 py-2 text-xs font-black uppercase tracking-[0.2em] transition-all hover:bg-yellow-400"
-          >
-            Back To Home
-          </button>
-        </div>
-      ) : null}
 
       {showMaintenanceScreen ? (
         <main className="mx-auto flex max-w-5xl items-center px-8 py-6">
@@ -274,6 +294,12 @@ function AppLayout() {
                             team={player.team}
                             goals={player.goals}
                             assists={player.assists}
+                            imageUrl={player.imageUrl}
+                            onCompare={() =>
+                              navigate(
+                                `/search?q=${encodeURIComponent(player.name)}&mode=players&compare=${encodeURIComponent(player.name)}`
+                              )
+                            }
                           />
                         ))}
                       </div>

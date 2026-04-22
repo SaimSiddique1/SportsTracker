@@ -1,6 +1,8 @@
 import { useState } from "react";
 
-function RegisterPage({ apiBaseUrl = "http://localhost:5001" }) {
+const DEFAULT_API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:5001";
+
+function RegisterPage({ apiBaseUrl = DEFAULT_API_BASE_URL }) {
   const [formData, setFormData] = useState({
     username: "",
     email: "",
@@ -66,7 +68,7 @@ function RegisterPage({ apiBaseUrl = "http://localhost:5001" }) {
       setMessage(data.message || "Registration complete.");
     } catch (error) {
       console.error("Register error:", error);
-      setMessage("Could not connect to server. Make sure the backend is running on port 5001.");
+      setMessage("Could not connect to server. Check VITE_API_BASE_URL and make sure the backend is running.");
     } finally {
       setIsLoading(false);
     }
