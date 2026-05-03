@@ -21,6 +21,8 @@ type AdminUser = {
   username: string;
   email: string;
   role: "admin" | "user";
+  isAdmin?: boolean;
+  permissions?: Record<string, boolean>;
   disabled: boolean;
   createdAt?: string;
 };
@@ -54,6 +56,19 @@ type SessionEntry = {
   role: string;
 };
 
+type DatabaseTable = {
+  schema: string;
+  name: string;
+  type: string;
+  rowCount: number;
+};
+
+type DatabasePreview = {
+  table: DatabaseTable;
+  columns: Array<{ name: string; dataType: string }>;
+  rows: Array<Record<string, unknown>>;
+};
+
 const apiBaseUrl = "http://localhost:5001";
 
 const emptyConfig: SystemConfig = {
@@ -76,6 +91,9 @@ function AdminConfigPanel() {
   const [featuredPlayersInput, setFeaturedPlayersInput] = useState("");
   const [audits, setAudits] = useState<AuditEntry[]>([]);
   const [sessions, setSessions] = useState<SessionEntry[]>([]);
+  const [databaseTables, setDatabaseTables] = useState<DatabaseTable[]>([]);
+  const [selectedTableName, setSelectedTableName] = useState("");
+  const [tablePreview, setTablePreview] = useState<DatabasePreview | null>(null);
   const [search, setSearch] = useState("");
   const [systemMessage, setSystemMessage] = useState("");
   const [dashboardMessage, setDashboardMessage] = useState("");
@@ -84,6 +102,7 @@ function AdminConfigPanel() {
   const [isLoading, setIsLoading] = useState(false);
   const [isSavingSystem, setIsSavingSystem] = useState(false);
   const [isSavingContent, setIsSavingContent] = useState(false);
+  const [isLoadingTable, setIsLoadingTable] = useState(false);
 
   useEffect(() => {
     const syncUser = () => {
@@ -123,7 +142,7 @@ function AdminConfigPanel() {
     setDashboardMessage("");
 
     try {
-      const [configResponse, dashboardResponse] = await Promise.all([
+      const [configResponse, dashboardResponse, databaseResponse] = await Promise.all([
         fetch(`${apiBaseUrl}/api/system-config`, {
           headers: {
             Authorization: `Bearer ${token}`,
@@ -134,10 +153,16 @@ function AdminConfigPanel() {
             Authorization: `Bearer ${token}`,
           },
         }),
+        fetch(`${apiBaseUrl}/api/admin/database`, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }),
       ]);
 
       const configData = await configResponse.json();
       const dashboardData = await dashboardResponse.json();
+      const databaseData = await databaseResponse.json();
 
       if (!configResponse.ok) {
         setDashboardMessage(configData.message || "Could not load system configuration.");
@@ -149,6 +174,11 @@ function AdminConfigPanel() {
         return;
       }
 
+      if (!databaseResponse.ok) {
+        setDashboardMessage(databaseData.message || "Could not load database details.");
+        return;
+      }
+
       setConfig(configData.config);
       setUsers(dashboardData.users || []);
       const nextContent = dashboardData.contentModeration || emptyContent;
@@ -156,6 +186,9 @@ function AdminConfigPanel() {
       setFeaturedPlayersInput((nextContent.featuredPlayers || []).join(", "));
       setAudits(dashboardData.audits || []);
       setSessions(dashboardData.sessions || []);
+      const nextTables = databaseData.tables || [];
+      setDatabaseTables(nextTables);
+      setSelectedTableName((current) => current || nextTables[0]?.name || "");
     } catch (error) {
       console.error("Admin dashboard load error:", error);
       setDashboardMessage("Could not connect to the backend on port 5001.");
@@ -370,6 +403,45 @@ function AdminConfigPanel() {
       setDashboardMessage("Could not connect to the backend on port 5001.");
     }
   };
+
+  const loadTablePreview = useCallback(async (tableName = selectedTableName) => {
+    const token = getToken();
+    if (!token || !tableName) {
+      return;
+    }
+
+    setIsLoadingTable(true);
+    setDashboardMessage("");
+
+    try {
+      const response = await fetch(`${apiBaseUrl}/api/admin/database/tables/${encodeURIComponent(tableName)}?limit=25`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+      const data = await response.json();
+
+      if (!response.ok) {
+        setDashboardMessage(data.message || "Could not load database table preview.");
+        return;
+      }
+
+      setTablePreview(data);
+    } catch (error) {
+      console.error(error);
+      setDashboardMessage("Could not connect to the backend on port 5001.");
+    } finally {
+      setIsLoadingTable(false);
+    }
+  }, [selectedTableName]);
+
+  useEffect(() => {
+    if (!modalOpen || !selectedTableName) {
+      return;
+    }
+
+    loadTablePreview(selectedTableName);
+  }, [loadTablePreview, modalOpen, selectedTableName]);
 
   const deleteUserAccount = async (entry: AdminUser) => {
     const token = getToken();
@@ -594,8 +666,16 @@ function AdminConfigPanel() {
                       <p className="text-lg font-black">{entry.username}</p>
                       <p className="text-sm font-semibold text-slate-600">{entry.email}</p>
                       <p className="mt-1 text-xs font-black uppercase tracking-[0.2em] text-slate-500">
-                        {entry.disabled ? "Disabled" : "Active"}
+                        {entry.disabled ? "Disabled" : "Active"} | Admin permissions: {entry.isAdmin ? "Yes" : "No"}
                       </p>
+                      {entry.isAdmin && entry.permissions ? (
+                        <p className="mt-2 text-xs font-semibold text-slate-600">
+                          {Object.entries(entry.permissions)
+                            .filter(([, enabled]) => enabled)
+                            .map(([name]) => name)
+                            .join(", ")}
+                        </p>
+                      ) : null}
                     </div>
                     <div className="flex flex-wrap items-center gap-2">
                       {entry.id === 1 ? (
@@ -631,6 +711,104 @@ function AdminConfigPanel() {
                   </div>
                 </article>
               ))}
+            </div>
+                    </section>
+
+                    <section className="border-4 border-black bg-slate-50 p-5 xl:col-span-2">
+            <div className="flex flex-wrap items-end justify-between gap-3">
+              <div>
+                <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">Postgres Database</p>
+                <h5 className="mt-2 text-3xl font-black">Tables And Row Preview</h5>
+                <p className="mt-2 text-sm font-semibold text-slate-600">
+                  Inspect public database tables and recent row shape from the admin UI.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => loadDashboard(search)}
+                className="border-2 border-black bg-yellow-400 px-4 py-2 text-xs font-black uppercase tracking-[0.2em]"
+              >
+                Refresh DB
+              </button>
+            </div>
+
+            <div className="mt-5 grid gap-5 lg:grid-cols-[0.45fr_1fr]">
+              <div className="space-y-3">
+                {databaseTables.map((table) => (
+                  <button
+                    key={`${table.schema}.${table.name}`}
+                    type="button"
+                    onClick={() => {
+                      setSelectedTableName(table.name);
+                      setTablePreview(null);
+                    }}
+                    className={`w-full border-2 border-black px-4 py-3 text-left text-sm font-black ${
+                      selectedTableName === table.name ? "bg-black text-white" : "bg-white text-black"
+                    }`}
+                  >
+                    <span className="block">{table.name}</span>
+                    <span className="mt-1 block text-xs font-semibold opacity-70">
+                      {table.schema} | {table.rowCount} rows
+                    </span>
+                  </button>
+                ))}
+              </div>
+
+              <div className="min-w-0 border-2 border-black bg-white p-4">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div>
+                    <p className="text-lg font-black">
+                      {tablePreview?.table.name || selectedTableName || "No table selected"}
+                    </p>
+                    <p className="text-xs font-semibold text-slate-500">
+                      {tablePreview ? `${tablePreview.columns.length} columns | showing ${tablePreview.rows.length} rows` : "Choose a table to preview rows"}
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => loadTablePreview()}
+                    disabled={isLoadingTable || !selectedTableName}
+                    className="border-2 border-black bg-white px-3 py-2 text-xs font-black uppercase tracking-[0.2em]"
+                  >
+                    {isLoadingTable ? "Loading" : "Preview"}
+                  </button>
+                </div>
+
+                <div className="mt-4 overflow-x-auto">
+                  {tablePreview ? (
+                    <table className="min-w-full border-collapse text-left text-xs">
+                      <thead>
+                        <tr>
+                          {tablePreview.columns.map((column) => (
+                            <th key={column.name} className="border-2 border-black bg-yellow-100 px-3 py-2 font-black">
+                              {column.name}
+                            </th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {tablePreview.rows.map((row, rowIndex) => (
+                          <tr key={`${tablePreview.table.name}-${rowIndex}`}>
+                            {tablePreview.columns.map((column) => (
+                              <td key={column.name} className="max-w-[18rem] truncate border-2 border-black px-3 py-2 font-semibold">
+                                {row[column.name] === null || row[column.name] === undefined
+                                  ? "NULL"
+                                  : typeof row[column.name] === "object"
+                                    ? JSON.stringify(row[column.name])
+                                    : String(row[column.name])}
+                              </td>
+                            ))}
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  ) : (
+                    <div className="border-2 border-dashed border-slate-300 p-6 text-sm font-semibold text-slate-500">
+                      Database tables are available after the dashboard finishes loading.
+                    </div>
+                  )}
+                </div>
+              </div>
             </div>
                     </section>
 
