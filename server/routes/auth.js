@@ -1,7 +1,9 @@
 const express = require("express");
 const bcrypt = require("bcrypt");
+const crypto = require("crypto");
 const jwt = require("jsonwebtoken");
 const { authenticateToken } = require("../middleware/auth");
+const { sendPasswordResetEmail } = require("../email");
 const { store } = require("../store");
 const jwtSecret = process.env.JWT_SECRET || "dev_only_sports_tracker_secret";
 
@@ -31,12 +33,27 @@ const validatePassword = (password) => {
   return null;
 };
 
+const normalizeEmail = (email) => String(email || "").trim().toLowerCase();
+
+const hashResetToken = (token) =>
+  crypto.createHash("sha256").update(token).digest("hex");
+
+const buildPasswordResetUrl = (email, token) => {
+  const configuredClientUrl = process.env.CLIENT_BASE_URL;
+  const origin = configuredClientUrl || "http://localhost:5173";
+  const resetUrl = new URL(origin);
+  resetUrl.searchParams.set("resetToken", token);
+  resetUrl.searchParams.set("email", email);
+  return resetUrl.toString();
+};
+
 // Register Route: read username, email, password.
 // Check if email exists, hash password w/ bcrypt,
 // insert user into database
 router.post("/register", async (req, res) => {
   try {
-    const { username, email, password } = req.body;
+    const { username, password } = req.body;
+    const email = normalizeEmail(req.body.email);
     const currentConfig = await store.getSystemConfig();
 
     if (!currentConfig.registrationEnabled) {
@@ -98,7 +115,8 @@ router.post("/register", async (req, res) => {
 // hash, create JWT if valid
 router.post("/login", async (req, res) => {
   try {
-    const { email, password } = req.body;
+    const { password } = req.body;
+    const email = normalizeEmail(req.body.email);
 
     const user = await store.findUserByEmail(email);
 
@@ -141,6 +159,112 @@ router.post("/login", async (req, res) => {
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: "Server error during login." });
+  }
+});
+
+router.post("/forgot-password", async (req, res) => {
+  const genericMessage = "If an account exists for that email, a password reset link has been sent.";
+
+  try {
+    const email = normalizeEmail(req.body.email);
+
+    if (!email) {
+      return res.status(400).json({ message: "Email is required." });
+    }
+
+    const user = await store.findUserByEmail(email);
+
+    if (!user || user.disabled) {
+      return res.json({ message: genericMessage });
+    }
+
+    const token = crypto.randomBytes(32).toString("hex");
+    const tokenHash = hashResetToken(token);
+    const expiresAt = new Date(Date.now() + 60 * 60 * 1000);
+    const resetUrl = buildPasswordResetUrl(email, token);
+
+    await store.createPasswordResetToken({
+      userId: user.id,
+      tokenHash,
+      expiresAt,
+    });
+
+    await sendPasswordResetEmail({
+      to: user.email,
+      resetUrl,
+    });
+
+    await store.addAuditEntry({
+      actionType: "password_reset_requested",
+      summary: `Password reset requested for ${email}`,
+      actorUserId: user.id,
+      targetType: "user",
+      targetId: String(user.id),
+      details: {
+        expiresAt: expiresAt.toISOString(),
+      },
+    });
+
+    res.json({ message: genericMessage });
+  } catch (err) {
+    console.error(err);
+    if (err.code === "EMAIL_NOT_CONFIGURED") {
+      return res.status(503).json({ message: err.message });
+    }
+    res.status(500).json({ message: "Unable to send password reset email." });
+  }
+});
+
+router.post("/reset-password", async (req, res) => {
+  try {
+    const email = normalizeEmail(req.body.email);
+    const token = String(req.body.token || "");
+    const { password } = req.body;
+
+    if (!email || !token || !password) {
+      return res.status(400).json({ message: "Email, reset token, and new password are required." });
+    }
+
+    const passwordValidationMessage = validatePassword(password);
+    if (passwordValidationMessage) {
+      return res.status(400).json({ message: passwordValidationMessage });
+    }
+
+    const tokenHash = hashResetToken(token);
+    const resetToken = await store.findPasswordResetToken(tokenHash);
+
+    if (
+      !resetToken ||
+      resetToken.usedAt ||
+      resetToken.disabled ||
+      resetToken.email.toLowerCase() !== email ||
+      new Date(resetToken.expiresAt).getTime() < Date.now()
+    ) {
+      return res.status(400).json({ message: "This password reset link is invalid or expired." });
+    }
+
+    const passwordHash = await bcrypt.hash(password, 10);
+    const updatedUser = await store.updateUserPassword({
+      id: resetToken.userId,
+      passwordHash,
+    });
+
+    await store.markPasswordResetTokenUsed(tokenHash);
+
+    if (updatedUser) {
+      await store.addAuditEntry({
+        actionType: "password_reset_completed",
+        summary: `Password reset completed for ${email}`,
+        actorUserId: updatedUser.id,
+        targetType: "user",
+        targetId: String(updatedUser.id),
+      });
+    }
+
+    res.json({ message: "Password reset successful. You can now log in with your new password." });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Server error during password reset." });
   }
 });
 

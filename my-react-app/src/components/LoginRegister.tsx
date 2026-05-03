@@ -92,6 +92,16 @@ function LoginRegister() {
   }, []);
 
   useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+
+    if (params.get("resetToken")) {
+      setPage("login");
+      setAuthModalOpen(true);
+      setProfileOpen(false);
+    }
+  }, []);
+
+  useEffect(() => {
     if (!profileOpen || !user) {
       return;
     }
