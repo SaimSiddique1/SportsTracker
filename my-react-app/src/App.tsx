@@ -1,5 +1,5 @@
 import { BrowserRouter as Router, Navigate, Route, Routes, useNavigate } from "react-router-dom";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import MatchCarousel from "./components/MatchCarousel";
 import LeagueTable from "./components/LeagueTable";
 import PlayerCard from "./components/PlayerCard";
@@ -36,8 +36,40 @@ const featuredPlayerCatalog: Record<string, { name: string; team: string; goals:
   "bukayo saka": { name: "Bukayo Saka", team: "Arsenal", goals: 16, assists: 11, imageUrl: buildFallbackImage("Bukayo Saka") },
 };
 
+function useDarkMode(): [boolean, () => void] {
+  const [isDark, setIsDark] = useState<boolean>(() => {
+    return localStorage.getItem("theme") !== "light";
+  });
+
+  useEffect(() => {
+    const root = document.documentElement;
+
+    if(isDark) {
+      root.classList.add("dark");
+      localStorage.setItem("theme", "dark");
+    } else {
+      root.classList.remove("dark");
+      localStorage.setItem("theme", "light");
+    }
+  }, [isDark]);
+
+  const toggle = useCallback(() => setIsDark((prev) => !prev), []);
+  return [isDark, toggle];
+}
+
+function ThemeToggle({isDark, onToggle}: {isDark: boolean; onToggle: () => void}) {
+  return (
+    <button type="button" onClick={onToggle} aria-label={isDark ? "Switch to light mode" : "Switch to dark mode"} aria-pressed={isDark}
+    className="flex h-10 w-10 items-center justify-center border-2 border-black bg-white text-black transition-colors hover:bg-yellow-400 focus-visible:outline focus-visible:outline-offset-2 focus-visible:outline-yellow-400 dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-100 dark:hover:bg-zinc-700"
+    title={isDark ? "Switch to light mode" : "Switch to dark mode"}>
+      {isDark ? "🌞" : "🌚"}
+    </button>
+  );
+}
+
 function AppLayout() {
   const navigate = useNavigate();
+  const [isDark, toggleDark] = useDarkMode();
   const [isAdmin, setIsAdmin] = useState(false);
   const [maintenanceMode, setMaintenanceMode] = useState(false);
   const [maintenanceMessage, setMaintenanceMessage] = useState("");
@@ -195,6 +227,7 @@ function AppLayout() {
         </div>
 
         <div className="flex items-center gap-4">
+          <ThemeToggle isDark={isDark} onToggle={toggleDark}/>
           <LoginRegister />
         </div>
       </nav>
