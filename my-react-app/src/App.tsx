@@ -130,8 +130,8 @@ function AppLayout() {
               externalId: favorite.externalId,
               name: fallbackName,
               team: fallbackTeam,
-              position: favorite.position || "Position unavailable",
-              sport: favorite.sport || "Sport unavailable",
+              position: favorite.position || "Player role",
+              sport: favorite.sport || "Football",
               imageUrl: fallbackImage,
             };
           })

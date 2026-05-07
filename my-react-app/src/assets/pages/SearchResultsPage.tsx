@@ -55,7 +55,19 @@ type FavoriteTeamRecord = {
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:5001";
 
-const EMPTY_VALUE = "N/A";
+const EMPTY_VALUE = "Not listed";
+
+const buildFallbackImage = (label: string) =>
+  `data:image/svg+xml;utf8,${encodeURIComponent(`
+    <svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256">
+      <rect width="256" height="256" fill="#fde047"/>
+      <rect x="10" y="10" width="236" height="236" fill="none" stroke="#000000" stroke-width="8"/>
+      <text x="50%" y="50%" dominant-baseline="middle" text-anchor="middle"
+        font-family="Arial, sans-serif" font-size="24" font-weight="700" fill="#000000">
+        ${label}
+      </text>
+    </svg>
+  `)}`;
 
 const toDisplay = (value?: string | null) => {
   if (!value || !value.trim()) {
@@ -143,7 +155,7 @@ function PlayerComparisonPanel({
       { label: "Weight", leftValue: left.weight, rightValue: right.weight },
       { label: "Goals", leftValue: left.goals, rightValue: right.goals },
       { label: "Assists", leftValue: left.assists, rightValue: right.assists },
-    ];
+    ].filter((metric) => metric.leftValue !== EMPTY_VALUE || metric.rightValue !== EMPTY_VALUE);
   }, [profiles]);
 
   return (
@@ -163,7 +175,7 @@ function PlayerComparisonPanel({
           <div key={player.idPlayer} className="flex items-center justify-between border border-slate-200 bg-slate-50 p-3">
             <div>
               <p className="font-black">{player.strPlayer || "Unknown Player"}</p>
-              <p className="text-xs font-semibold text-slate-500">{player.strTeam || "No team listed"}</p>
+              <p className="text-xs font-semibold text-slate-500">{player.strTeam || "Club not listed"}</p>
             </div>
             <button
               onClick={() => onRemovePlayer(player.idPlayer ?? "")}
@@ -614,21 +626,15 @@ function SearchResultsPage() {
                       key={player.idPlayer}
                       className="flex gap-4 border border-slate-200 bg-slate-50 p-4"
                     >
-                      {player.strThumb ? (
-                        <img
-                          src={player.strThumb}
-                          alt={player.strPlayer ?? "Player"}
-                          className="h-24 w-24 object-cover"
-                        />
-                      ) : (
-                        <div className="flex h-24 w-24 items-center justify-center bg-yellow-300 text-xs font-black">
-                          NO IMG
-                        </div>
-                      )}
+                      <img
+                        src={player.strThumb || buildFallbackImage(player.strPlayer || query || "PLAYER")}
+                        alt={player.strPlayer ?? "Player"}
+                        className="h-24 w-24 object-cover"
+                      />
                       <div className="flex flex-1 flex-col justify-between">
                         <div>
-                          <h3 className="font-black">{player.strPlayer}</h3>
-                          <p className="text-sm font-semibold">{player.strTeam || "No team listed"}</p>
+                          <h3 className="font-black">{player.strPlayer || query || "Player result"}</h3>
+                          <p className="text-sm font-semibold">{player.strTeam || "Club not listed"}</p>
                           <p className="text-xs uppercase tracking-[0.2em] text-slate-500">
                             {player.strPosition || player.strSport || "Profile"}
                           </p>
@@ -688,20 +694,14 @@ function SearchResultsPage() {
                         key={team.idTeam}
                         className="flex gap-4 border border-slate-200 bg-slate-50 p-4"
                       >
-                        {team.strTeamBadge ? (
-                          <img
-                            src={team.strTeamBadge}
-                            alt={team.strTeam ?? "Team"}
-                            className="h-20 w-20 object-contain"
-                          />
-                        ) : (
-                          <div className="flex h-20 w-20 items-center justify-center bg-black text-xs font-black text-white">
-                            NO BADGE
-                          </div>
-                        )}
+                        <img
+                          src={team.strTeamBadge || buildFallbackImage(team.strTeam || query || "TEAM")}
+                          alt={team.strTeam ?? "Team"}
+                          className="h-20 w-20 object-contain bg-white"
+                        />
                         <div>
-                          <h3 className="font-black">{team.strTeam}</h3>
-                          <p className="text-sm font-semibold">{team.strLeague}</p>
+                          <h3 className="font-black">{team.strTeam || query || "Team result"}</h3>
+                          <p className="text-sm font-semibold">{team.strLeague || "League not listed"}</p>
                           <p className="text-xs uppercase tracking-[0.2em] text-slate-500">
                             {team.strCountry || "Club"}
                           </p>
@@ -795,7 +795,12 @@ function SearchResultsPage() {
                       ))}
                     </div>
                   ) : (
-                    <p className="font-semibold text-slate-500">No table data found for this competition.</p>
+                    <div className="space-y-2">
+                      <p className="font-black">Standings were not returned for the selected season.</p>
+                      <p className="text-sm font-semibold text-slate-500">
+                        {selectedCompetition.country} | {selectedCompetition.season} | {selectedCompetition.label}
+                      </p>
+                    </div>
                   )}
                 </div>
               ) : null}

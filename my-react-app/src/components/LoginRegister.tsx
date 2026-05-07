@@ -5,6 +5,18 @@ import RegisterPage from "../assets/pages/RegisterPage.jsx";
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:5001";
 
+const buildFallbackImage = (label: string) =>
+  `data:image/svg+xml;utf8,${encodeURIComponent(`
+    <svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256">
+      <rect width="256" height="256" fill="#fde047"/>
+      <rect x="10" y="10" width="236" height="236" fill="none" stroke="#000000" stroke-width="8"/>
+      <text x="50%" y="50%" dominant-baseline="middle" text-anchor="middle"
+        font-family="Arial, sans-serif" font-size="24" font-weight="700" fill="#000000">
+        ${label}
+      </text>
+    </svg>
+  `)}`;
+
 type AuthUser = {
   id?: number;
   username?: string;
@@ -617,22 +629,16 @@ function LoginRegister() {
                             {favoritePlayers.length ? (
                               favoritePlayers.map((favorite) => (
                                 <article key={favorite.externalId} className="flex gap-3 border-2 border-black bg-white p-3">
-                                  {favorite.imageUrl ? (
-                                    <img
-                                      src={favorite.imageUrl}
-                                      alt={favorite.playerName}
-                                      className="h-20 w-20 border-2 border-black object-cover"
-                                    />
-                                  ) : (
-                                    <div className="flex h-20 w-20 items-center justify-center border-2 border-black bg-yellow-300 text-[10px] font-black">
-                                      NO IMG
-                                    </div>
-                                  )}
+                                  <img
+                                    src={favorite.imageUrl || buildFallbackImage(favorite.playerName || "PLAYER")}
+                                    alt={favorite.playerName}
+                                    className="h-20 w-20 border-2 border-black object-cover"
+                                  />
                                   <div className="flex flex-1 flex-col justify-between gap-2">
                                     <div>
                                       <p className="font-black">{favorite.playerName}</p>
                                       <p className="text-sm font-semibold text-slate-600">
-                                        {favorite.teamName || "No team listed"}
+                                        {favorite.teamName || "Club not listed"}
                                       </p>
                                       <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">
                                         {favorite.position || favorite.sport || "Player"}
@@ -666,22 +672,16 @@ function LoginRegister() {
                             {favoriteTeams.length ? (
                               favoriteTeams.map((favorite) => (
                                 <article key={favorite.externalId} className="flex gap-3 border-2 border-black bg-white p-3">
-                                  {favorite.badgeUrl ? (
-                                    <img
-                                      src={favorite.badgeUrl}
-                                      alt={favorite.teamName}
-                                      className="h-20 w-20 border-2 border-black object-contain bg-white p-2"
-                                    />
-                                  ) : (
-                                    <div className="flex h-20 w-20 items-center justify-center border-2 border-black bg-black text-[10px] font-black text-white">
-                                      NO BADGE
-                                    </div>
-                                  )}
+                                  <img
+                                    src={favorite.badgeUrl || buildFallbackImage(favorite.teamName || "TEAM")}
+                                    alt={favorite.teamName}
+                                    className="h-20 w-20 border-2 border-black object-contain bg-white p-2"
+                                  />
                                   <div className="flex flex-1 flex-col justify-between gap-2">
                                     <div>
                                       <p className="font-black">{favorite.teamName}</p>
                                       <p className="text-sm font-semibold text-slate-600">
-                                        {favorite.leagueName || "No league listed"}
+                                        {favorite.leagueName || "League not listed"}
                                       </p>
                                       <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">
                                         {favorite.country || "Club"}
