@@ -45,6 +45,16 @@ type ComparisonMetric = {
   rightValue: string;
 };
 
+type FavoritePlayerRecord = {
+  externalId: string;
+};
+
+type FavoriteTeamRecord = {
+  externalId: string;
+};
+
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:5001";
+
 const EMPTY_VALUE = "N/A";
 
 const toDisplay = (value?: string | null) => {
@@ -282,6 +292,12 @@ function SearchResultsPage() {
   const [loading, setLoading] = useState(false);
   const [tableLoading, setTableLoading] = useState(false);
   const [error, setError] = useState("");
+  const [favoritePlayerIds, setFavoritePlayerIds] = useState<string[]>([]);
+  const [favoriteTeamIds, setFavoriteTeamIds] = useState<string[]>([]);
+  const [favoriteMessage, setFavoriteMessage] = useState("");
+  const [favoriteLoadingId, setFavoriteLoadingId] = useState("");
+
+  const token = typeof window !== "undefined" ? localStorage.getItem("token") : null;
 
   const matchingCompetitions = useMemo(() => {
     if (!query) {
@@ -387,6 +403,62 @@ function SearchResultsPage() {
     fetchTable();
   }, [selectedCompetition]);
 
+  useEffect(() => {
+    const loadFavorites = async () => {
+      const nextToken = localStorage.getItem("token");
+
+      if (!nextToken) {
+        setFavoritePlayerIds([]);
+        setFavoriteTeamIds([]);
+        return;
+      }
+
+      try {
+        const [playerResponse, teamResponse] = await Promise.all([
+          fetch(`${API_BASE_URL}/api/favorites/players`, {
+            headers: {
+              Authorization: `Bearer ${nextToken}`,
+            },
+          }),
+          fetch(`${API_BASE_URL}/api/favorites/teams`, {
+            headers: {
+              Authorization: `Bearer ${nextToken}`,
+            },
+          }),
+        ]);
+
+        const playerData = await playerResponse.json();
+        const teamData = await teamResponse.json();
+
+        if (!playerResponse.ok || !teamResponse.ok) {
+          setFavoriteMessage(playerData.message || teamData.message || "Could not load favorites.");
+          return;
+        }
+
+        setFavoritePlayerIds(
+          Array.isArray(playerData.favorites)
+            ? playerData.favorites.map((entry: FavoritePlayerRecord) => entry.externalId).filter(Boolean)
+            : []
+        );
+        setFavoriteTeamIds(
+          Array.isArray(teamData.favorites)
+            ? teamData.favorites.map((entry: FavoriteTeamRecord) => entry.externalId).filter(Boolean)
+            : []
+        );
+      } catch (loadError) {
+        console.error("Favorite load failed:", loadError);
+        setFavoriteMessage("Could not connect to backend favorites.");
+      }
+    };
+
+    loadFavorites();
+    window.addEventListener("auth-changed", loadFavorites);
+
+    return () => {
+      window.removeEventListener("auth-changed", loadFavorites);
+    };
+  }, []);
+
   const addPlayerToCompare = (player: PlayerResult) => {
     if (!player.idPlayer) {
       return;
@@ -409,6 +481,106 @@ function SearchResultsPage() {
     setSelectedComparePlayers([]);
   };
 
+  const toggleFavoritePlayer = async (player: PlayerResult) => {
+    if (!token) {
+      setFavoriteMessage("Log in to save favorite players.");
+      return;
+    }
+
+    if (!player.idPlayer) {
+      setFavoriteMessage("This player result is missing an API id.");
+      return;
+    }
+
+    const isSaved = favoritePlayerIds.includes(player.idPlayer);
+    setFavoriteLoadingId(`player-${player.idPlayer}`);
+    setFavoriteMessage("");
+
+    try {
+      const response = await fetch(
+        isSaved
+          ? `${API_BASE_URL}/api/favorites/players/${encodeURIComponent(player.idPlayer)}`
+          : `${API_BASE_URL}/api/favorites/players`,
+        {
+          method: isSaved ? "DELETE" : "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: isSaved ? undefined : JSON.stringify({ player }),
+        }
+      );
+      const data = await response.json();
+
+      if (!response.ok) {
+        setFavoriteMessage(data.message || "Could not update favorite player.");
+        return;
+      }
+
+      setFavoritePlayerIds((current) =>
+        isSaved
+          ? current.filter((id) => id !== player.idPlayer)
+          : [...current, player.idPlayer!]
+      );
+      setFavoriteMessage(data.message || (isSaved ? "Favorite player removed." : "Favorite player saved."));
+    } catch (saveError) {
+      console.error("Favorite player update failed:", saveError);
+      setFavoriteMessage("Could not connect to backend favorites.");
+    } finally {
+      setFavoriteLoadingId("");
+    }
+  };
+
+  const toggleFavoriteTeam = async (team: TeamResult) => {
+    if (!token) {
+      setFavoriteMessage("Log in to save favorite teams.");
+      return;
+    }
+
+    if (!team.idTeam) {
+      setFavoriteMessage("This team result is missing an API id.");
+      return;
+    }
+
+    const isSaved = favoriteTeamIds.includes(team.idTeam);
+    setFavoriteLoadingId(`team-${team.idTeam}`);
+    setFavoriteMessage("");
+
+    try {
+      const response = await fetch(
+        isSaved
+          ? `${API_BASE_URL}/api/favorites/teams/${encodeURIComponent(team.idTeam)}`
+          : `${API_BASE_URL}/api/favorites/teams`,
+        {
+          method: isSaved ? "DELETE" : "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: isSaved ? undefined : JSON.stringify({ team }),
+        }
+      );
+      const data = await response.json();
+
+      if (!response.ok) {
+        setFavoriteMessage(data.message || "Could not update favorite team.");
+        return;
+      }
+
+      setFavoriteTeamIds((current) =>
+        isSaved
+          ? current.filter((id) => id !== team.idTeam)
+          : [...current, team.idTeam!]
+      );
+      setFavoriteMessage(data.message || (isSaved ? "Favorite team removed." : "Favorite team saved."));
+    } catch (saveError) {
+      console.error("Favorite team update failed:", saveError);
+      setFavoriteMessage("Could not connect to backend favorites.");
+    } finally {
+      setFavoriteLoadingId("");
+    }
+  };
+
   return (
     <main className="mx-auto max-w-6xl px-8 py-10">
       <section className="border-4 border-black bg-white p-8 shadow-[10px_10px_0_0_rgba(0,0,0,1)]">
@@ -428,6 +600,7 @@ function SearchResultsPage() {
         <div className="mt-8 space-y-8">
           {loading ? <p className="font-semibold">Searching...</p> : null}
           {error ? <p className="font-semibold text-red-600">{error}</p> : null}
+          {favoriteMessage ? <p className="font-semibold text-slate-600">{favoriteMessage}</p> : null}
 
           {mode === "players" && !loading ? (
             <div>
@@ -472,6 +645,17 @@ function SearchResultsPage() {
                           {selectedComparePlayers.some((selected) => selected.idPlayer === player.idPlayer)
                             ? "Selected"
                             : "Add to Compare"}
+                        </button>
+                        <button
+                          onClick={() => toggleFavoritePlayer(player)}
+                          disabled={!player.idPlayer || favoriteLoadingId === `player-${player.idPlayer}`}
+                          className="mt-2 w-fit border-2 border-black bg-white px-3 py-1 text-[10px] font-black uppercase tracking-[0.2em] disabled:cursor-not-allowed disabled:opacity-50"
+                        >
+                          {favoriteLoadingId === `player-${player.idPlayer}`
+                            ? "Saving..."
+                            : favoritePlayerIds.includes(player.idPlayer ?? "")
+                              ? "Remove Favorite"
+                              : "Save Favorite"}
                         </button>
                       </div>
                     </article>
@@ -521,6 +705,17 @@ function SearchResultsPage() {
                           <p className="text-xs uppercase tracking-[0.2em] text-slate-500">
                             {team.strCountry || "Club"}
                           </p>
+                          <button
+                            onClick={() => toggleFavoriteTeam(team)}
+                            disabled={!team.idTeam || favoriteLoadingId === `team-${team.idTeam}`}
+                            className="mt-3 border-2 border-black bg-white px-3 py-1 text-[10px] font-black uppercase tracking-[0.2em] disabled:cursor-not-allowed disabled:opacity-50"
+                          >
+                            {favoriteLoadingId === `team-${team.idTeam}`
+                              ? "Saving..."
+                              : favoriteTeamIds.includes(team.idTeam ?? "")
+                                ? "Remove Favorite"
+                                : "Save Favorite"}
+                          </button>
                         </div>
                       </article>
                     ))}
