@@ -291,26 +291,26 @@ function AppLayout() {
             element={
               <>
                 <MatchCarousel />
-                <main className="mx-auto grid max-w-7xl grid-cols-1 gap-12 p-8 lg:grid-cols-12">
-                  <section className="space-y-12 lg:col-span-8">
-                    <div className="relative overflow-hidden border border-slate-800 bg-zinc-900 p-12 text-white">
+                <main id="main-content" className="mx-auto grid max-w-7xl grid-cols-1 gap-12 p-8 lg:grid-cols-12">
+                  <section aria-label="Home page content" className="space-y-12 lg:col-span-8">
+                    <div className="relative overflow-hidden border border-slate-800 bg-zinc-900 p-12 text-white" aria-labelledby="hero-heading">
                       <div className="relative z-10">
-                        <h2 className="mb-4 text-5xl font-black leading-tight tracking-tighter">
+                        <h1 id="hero-heading" className="mb-4 text-5xl font-black leading-tight tracking-tighter">
                           {renderHeroHeadline()}
-                        </h2>
-                      <p className="mb-8 max-w-sm text-[10px] font-bold tracking-widest text-slate-400">
+                        </h1>
+                        <p className="mb-8 max-w-sm text-[10px] font-bold tracking-widest text-slate-400">
                           {homeHeroSubtext}
                         </p>
-                        <div className="flex gap-4">
+                      <div className="flex gap-4" role="group" aria-label="Quick navigation">
                           <button
                             onClick={() => navigate("/search?q=Lionel%20Messi&mode=players")}
-                            className="bg-yellow-400 px-6 py-3 text-xs font-black tracking-widest text-black transition-colors hover:bg-white"
+                            className="bg-yellow-400 px-6 py-3 text-xs font-black tracking-widest text-black transition-colors hover:bg-white focus-visible:outline focus-visible:outline-offset-2 focus-visible:outline-yellow-400"
                           >
                             Search Players
                           </button>
                           <button
                             onClick={() => navigate("/search?q=English%20Premier%20League&mode=teams")}
-                            className="border border-white/20 bg-white/10 px-8 py-3 text-xs font-black tracking-widest transition-colors hover:bg-white/20"
+                            className="border border-white/20 bg-white/10 px-8 py-3 text-xs font-black tracking-widest transition-colors hover:bg-white/20 focus-visible:outline focus-visible:outline-offset-2 focus-visible:outline-yellow-400"
                           >
                             Search Teams
                           </button>
@@ -320,9 +320,9 @@ function AppLayout() {
 
                     <HomePage />
 
-                    <div>
-                      <h3 className="mb-6 text-2xl font-black tracking-tighter">Trending Players</h3>
-                      <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+                    <section aria-labelledby="trending-heading">
+                      <h2 id="trending-heading" className="mb-6 text-2xl font-black tracking-tighter">Trending Players</h2>
+                      <ul role="list" className="grid grid-cols-1 gap-6 md:grid-cols-2">
                         {featuredPlayers.map((player) => (
                           <PlayerCard
                             key={player.name}
@@ -338,15 +338,15 @@ function AppLayout() {
                             }
                           />
                         ))}
-                      </div>
-                    </div>
+                      </ul>
+                    </section>
                   </section>
 
-                  <aside className="lg:col-span-4">
+                  <aside aria-label="League table and live stats" className="lg:col-span-4">
                     <div className="border border-slate-200 bg-white p-6 dark:border-zinc-800 dark:bg-zinc-900">
-                      <h3 className="mb-6 inline-block border-b-4 border-yellow-400 text-xl font-black tracking-tighter">
+                      <h2 className="mb-6 inline-block border-b-4 border-yellow-400 text-xl font-black tracking-tighter">
                         League Table
-                      </h3>
+                      </h2>
                       <LeagueTable />
                       <div className="mt-8">
                         <RealTimeStats />
@@ -354,12 +354,14 @@ function AppLayout() {
                     </div>
                   </aside>
                 </main>
+
                 <div className="mx-auto max-w-7xl px-8 pb-12">
                   <AdminConfigPanel />
                 </div>
               </>
             }
           />
+          
           <Route path="/search" element={<SearchResultsPage />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
