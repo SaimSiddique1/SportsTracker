@@ -204,33 +204,36 @@ function AppLayout() {
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900 transition-colors duration-300 selection:bg-yellow-400 dark:bg-black dark:text-zinc-100">
-      <nav className="sticky top-0 z-50 flex items-center justify-between gap-6 border-b-4 border-black bg-white/90 px-8 py-4 backdrop-blur-md dark:border-zinc-800 dark:bg-black/90">
-        <button
-          onClick={() => navigate("/")}
-          className="flex items-center gap-3"
-          aria-label="Go to home page"
-        >
-          <div className="flex h-12 w-12 items-center justify-center border-2 border-black bg-yellow-400 text-2xl font-black text-black">
-            ST
+      <a href="#main-content" className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-100 focus:bg-yellow-400 focus:px-4 focus:py-2 focus:text-sm focus:font-black focus:text-black focus:outline focus:outline-black">Skip to Main Content</a>
+      <header>
+        <nav aria-label="Primary navigation" className="sticky top-0 z-50 flex items-center justify-between gap-6 border-b-4 border-black bg-white/90 px-8 py-4 backdrop-blur-md dark:border-zinc-800 dark:bg-black/90">
+          <button
+            onClick={() => navigate("/")}
+            className="flex items-center gap-3"
+            aria-label="Go to home page"
+          >
+            <div className="flex h-12 w-12 items-center justify-center border-2 border-black bg-yellow-400 text-2xl font-black text-black" aria-hidden="true">
+              ST
+            </div>
+            <span className="text-3xl font-black tracking-tighter">
+              Sports <span className="text-yellow-500">Tracker</span>
+            </span>
+          </button>
+
+          <div className="hidden max-w-lg flex-1 lg:block" role="search" aria-label="Site search">
+            <SearchBar
+              onSearch={handleSearch}
+              placeholder="Search leagues or players"
+              showFilters={false}
+            />
           </div>
-          <h1 className="text-3xl font-black tracking-tighter">
-            Sports <span className="text-yellow-500">Tracker</span>
-          </h1>
-        </button>
 
-        <div className="hidden max-w-lg flex-1 lg:block">
-          <SearchBar
-            onSearch={handleSearch}
-            placeholder="Search leagues or players"
-            showFilters={false}
-          />
-        </div>
-
-        <div className="flex items-center gap-4">
-          <ThemeToggle isDark={isDark} onToggle={toggleDark}/>
-          <LoginRegister />
-        </div>
-      </nav>
+          <div className="flex items-center gap-3">
+            <ThemeToggle isDark={isDark} onToggle={toggleDark}/>
+            <LoginRegister />
+          </div>
+        </nav>
+      </header>
 
       {showMaintenanceScreen ? (
         <main className="mx-auto flex max-w-5xl items-center px-8 py-6">
