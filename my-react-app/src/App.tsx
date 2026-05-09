@@ -236,25 +236,26 @@ function AppLayout() {
       </header>
 
       {showMaintenanceScreen ? (
-        <main className="mx-auto flex max-w-5xl items-center px-8 py-6">
-          <section className="w-full overflow-hidden border-4 border-black bg-white shadow-[14px_14px_0_0_rgba(0,0,0,1)]">
+        <main id="main-content" className="mx-auto flex max-w-5xl items-center px-8 py-6">
+          <section aria-labelledby="maintenance-heading" aria-live="polite" role="status" className="w-full overflow-hidden border-4 border-black bg-white shadow-[14px_14px_0_0_rgba(0,0,0,1)]">
             <div className="border-b-4 border-black bg-yellow-400 px-8 py-6 text-black">
               <p className="text-[11px] font-black uppercase tracking-[0.35em]">
                 SportsTracker Maintenance
               </p>
-              <h2 className="mt-3 text-5xl font-black tracking-tight">
+              <h1 id="maintenance-heading" className="mt-3 text-5xl font-black tracking-tight">
                 Currently Under Maintenance
-              </h2>
+              </h1>
             </div>
+
             <div className="grid gap-5 px-8 py-5 pb-6 lg:grid-cols-[1fr_0.85fr] lg:items-start">
               <div className="space-y-3">
                 <p className="max-w-2xl text-2xl font-black leading-tight text-black">
                   {maintenanceMessage || "Scheduled maintenance is in progress. Please check back soon."}
                 </p>
-                <div className="flex justify-center py-1 lg:justify-center">
+                <div className="flex justify-center py-1 lg:justify-center" aria-hidden="true">
                   <div className="relative h-[7.6rem] w-[7.6rem]">
-                    <div className="absolute inset-0 rotate-45 rounded-[1.5rem] border-4 border-black bg-yellow-400 shadow-[6px_6px_0_0_rgba(0,0,0,1)]" />
-                    <div className="absolute inset-[11px] rotate-45 rounded-[0.85rem] border-[3px] border-black" />
+                    <div className="absolute inset-0 rotate-45 rounded-3xl border-4 border-black bg-yellow-400 shadow-[6px_6px_0_0_rgba(0,0,0,1)]" />
+                    <div className="absolute inset-2.75 rotate-45 rounded-[0.85rem] border-[3px] border-black" />
                     <div className="absolute inset-0 flex -translate-y-1 flex-col items-center justify-center text-center text-black">
                       <div className="mb-1 text-[1.7rem] font-black leading-none">🛠</div>
                       <div className="text-[1.7rem] font-black leading-none tracking-tight">
@@ -267,16 +268,15 @@ function AppLayout() {
                   </div>
                 </div>
               </div>
+
               <div className="border-2 border-black bg-black p-5 text-white lg:max-w-md lg:justify-self-end">
-                <p className="text-[10px] font-black uppercase tracking-[0.25em] text-yellow-400">
-                  Status
-                </p>
+                <p className="text-[10px] font-black uppercase tracking-[0.25em] text-yellow-400">Status</p>
                 <p className="mt-3 text-3xl font-black">Service Paused</p>
                 <p className="mt-3 text-sm font-semibold leading-7 text-slate-200">
                   Browse, search, and live sports views will return after maintenance mode is turned off by an admin.
                 </p>
                 {isMaintenanceLoading ? (
-                  <p className="mt-6 text-xs font-black uppercase tracking-[0.2em] text-yellow-400">
+                  <p aria-live="polite" aria-busy="true" className="mt-6 text-xs font-black uppercase tracking-[0.2em] text-yellow-400">
                     Checking live status...
                   </p>
                 ) : null}
