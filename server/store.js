@@ -48,10 +48,13 @@ const maskArrayFromCsv = (value) =>
 const createMemoryStore = () => ({
   nextUserId: 1,
   nextAuditId: 1,
+  nextFavoriteId: 1,
   users: [],
   sessions: [],
   passwordResetTokens: [],
   audits: [],
+  favoritePlayers: [],
+  favoriteTeams: [],
   systemConfig: {
     ...defaultSystemConfig,
     updatedAt: new Date().toISOString(),
@@ -232,6 +235,17 @@ const createPgStore = () => {
       `);
 
       await pool.query(`
+        CREATE TABLE IF NOT EXISTS favorite_players (
+          id SERIAL PRIMARY KEY,
+          user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          provider TEXT NOT NULL DEFAULT 'thesportsdb',
+          external_id TEXT NOT NULL,
+          player_name TEXT NOT NULL,
+          team_name TEXT NULL,
+          sport TEXT NULL,
+          position TEXT NULL,
+          image_url TEXT NULL,
+          raw_payload JSONB NOT NULL,
         CREATE TABLE IF NOT EXISTS password_reset_tokens (
           id SERIAL PRIMARY KEY,
           user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -240,6 +254,76 @@ const createPgStore = () => {
           used_at TIMESTAMPTZ NULL,
           created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
         )
+      `);
+
+      await pool.query(`
+        ALTER TABLE favorite_players
+        ADD COLUMN IF NOT EXISTS provider TEXT NOT NULL DEFAULT 'thesportsdb',
+        ADD COLUMN IF NOT EXISTS external_id TEXT,
+        ADD COLUMN IF NOT EXISTS team_name TEXT,
+        ADD COLUMN IF NOT EXISTS sport TEXT,
+        ADD COLUMN IF NOT EXISTS position TEXT,
+        ADD COLUMN IF NOT EXISTS image_url TEXT,
+        ADD COLUMN IF NOT EXISTS raw_payload JSONB
+      `);
+
+      await pool.query(`
+        UPDATE favorite_players
+        SET external_id = COALESCE(external_id, player_name),
+            raw_payload = COALESCE(raw_payload, jsonb_build_object('player_name', player_name))
+      `);
+
+      await pool.query(`
+        ALTER TABLE favorite_players
+        ALTER COLUMN external_id SET NOT NULL,
+        ALTER COLUMN raw_payload SET NOT NULL
+      `);
+
+      await pool.query(`
+        CREATE UNIQUE INDEX IF NOT EXISTS favorite_players_user_provider_external_idx
+        ON favorite_players (user_id, provider, external_id)
+      `);
+
+      await pool.query(`
+        CREATE TABLE IF NOT EXISTS favorite_teams (
+          id SERIAL PRIMARY KEY,
+          user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          provider TEXT NOT NULL DEFAULT 'thesportsdb',
+          external_id TEXT NOT NULL,
+          team_name TEXT NOT NULL,
+          league_name TEXT NULL,
+          country TEXT NULL,
+          badge_url TEXT NULL,
+          raw_payload JSONB NOT NULL,
+          created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+        )
+      `);
+
+      await pool.query(`
+        ALTER TABLE favorite_teams
+        ADD COLUMN IF NOT EXISTS provider TEXT NOT NULL DEFAULT 'thesportsdb',
+        ADD COLUMN IF NOT EXISTS external_id TEXT,
+        ADD COLUMN IF NOT EXISTS league_name TEXT,
+        ADD COLUMN IF NOT EXISTS country TEXT,
+        ADD COLUMN IF NOT EXISTS badge_url TEXT,
+        ADD COLUMN IF NOT EXISTS raw_payload JSONB
+      `);
+
+      await pool.query(`
+        UPDATE favorite_teams
+        SET external_id = COALESCE(external_id, team_name),
+            raw_payload = COALESCE(raw_payload, jsonb_build_object('team_name', team_name))
+      `);
+
+      await pool.query(`
+        ALTER TABLE favorite_teams
+        ALTER COLUMN external_id SET NOT NULL,
+        ALTER COLUMN raw_payload SET NOT NULL
+      `);
+
+      await pool.query(`
+        CREATE UNIQUE INDEX IF NOT EXISTS favorite_teams_user_provider_external_idx
+        ON favorite_teams (user_id, provider, external_id)
       `);
 
       await setAdminState("contentModeration", defaultContentModeration);
@@ -582,6 +666,163 @@ const createPgStore = () => {
       return result.rows.length > 0;
     },
 
+    async upsertFavoritePlayer({ userId, provider, externalId, playerName, teamName, sport, position, imageUrl, rawPayload }) {
+      const result = await pool.query(
+        `INSERT INTO favorite_players (
+          user_id,
+          provider,
+          external_id,
+          player_name,
+          team_name,
+          sport,
+          position,
+          image_url,
+          raw_payload
+        )
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9::jsonb)
+        ON CONFLICT (user_id, provider, external_id)
+        DO UPDATE SET
+          player_name = EXCLUDED.player_name,
+          team_name = EXCLUDED.team_name,
+          sport = EXCLUDED.sport,
+          position = EXCLUDED.position,
+          image_url = EXCLUDED.image_url,
+          raw_payload = EXCLUDED.raw_payload
+        RETURNING
+          id,
+          user_id AS "userId",
+          provider,
+          external_id AS "externalId",
+          player_name AS "playerName",
+          team_name AS "teamName",
+          sport,
+          position,
+          image_url AS "imageUrl",
+          raw_payload AS "rawPayload",
+          created_at AS "createdAt"`,
+        [
+          userId,
+          provider,
+          externalId,
+          playerName,
+          teamName,
+          sport,
+          position,
+          imageUrl,
+          JSON.stringify(rawPayload),
+        ]
+      );
+      return result.rows[0];
+    },
+
+    async listFavoritePlayers(userId) {
+      const result = await pool.query(
+        `SELECT
+          id,
+          user_id AS "userId",
+          provider,
+          external_id AS "externalId",
+          player_name AS "playerName",
+          team_name AS "teamName",
+          sport,
+          position,
+          image_url AS "imageUrl",
+          raw_payload AS "rawPayload",
+          created_at AS "createdAt"
+         FROM favorite_players
+         WHERE user_id = $1
+         ORDER BY created_at DESC`,
+        [userId]
+      );
+      return result.rows;
+    },
+
+    async deleteFavoritePlayer({ userId, externalId }) {
+      const result = await pool.query(
+        `DELETE FROM favorite_players
+         WHERE user_id = $1 AND external_id = $2
+         RETURNING id`,
+        [userId, externalId]
+      );
+      return result.rows.length > 0;
+    },
+
+    async upsertFavoriteTeam({ userId, provider, externalId, teamName, leagueName, country, badgeUrl, rawPayload }) {
+      const result = await pool.query(
+        `INSERT INTO favorite_teams (
+          user_id,
+          provider,
+          external_id,
+          team_name,
+          league_name,
+          country,
+          badge_url,
+          raw_payload
+        )
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8::jsonb)
+        ON CONFLICT (user_id, provider, external_id)
+        DO UPDATE SET
+          team_name = EXCLUDED.team_name,
+          league_name = EXCLUDED.league_name,
+          country = EXCLUDED.country,
+          badge_url = EXCLUDED.badge_url,
+          raw_payload = EXCLUDED.raw_payload
+        RETURNING
+          id,
+          user_id AS "userId",
+          provider,
+          external_id AS "externalId",
+          team_name AS "teamName",
+          league_name AS "leagueName",
+          country,
+          badge_url AS "badgeUrl",
+          raw_payload AS "rawPayload",
+          created_at AS "createdAt"`,
+        [
+          userId,
+          provider,
+          externalId,
+          teamName,
+          leagueName,
+          country,
+          badgeUrl,
+          JSON.stringify(rawPayload),
+        ]
+      );
+      return result.rows[0];
+    },
+
+    async listFavoriteTeams(userId) {
+      const result = await pool.query(
+        `SELECT
+          id,
+          user_id AS "userId",
+          provider,
+          external_id AS "externalId",
+          team_name AS "teamName",
+          league_name AS "leagueName",
+          country,
+          badge_url AS "badgeUrl",
+          raw_payload AS "rawPayload",
+          created_at AS "createdAt"
+         FROM favorite_teams
+         WHERE user_id = $1
+         ORDER BY created_at DESC`,
+        [userId]
+      );
+      return result.rows;
+    },
+
+    async deleteFavoriteTeam({ userId, externalId }) {
+      const result = await pool.query(
+        `DELETE FROM favorite_teams
+         WHERE user_id = $1 AND external_id = $2
+         RETURNING id`,
+        [userId, externalId]
+      );
+      return result.rows.length > 0;
+    },
+
     async addAuditEntry({
       actionType,
       summary,
@@ -700,6 +941,11 @@ const createDemoFileStore = () => ({
       changed = true;
     }
 
+    if (typeof data.nextFavoriteId !== "number") {
+      data.nextFavoriteId = 1;
+      changed = true;
+    }
+
     if (!Array.isArray(data.sessions)) {
       data.sessions = [];
       changed = true;
@@ -712,6 +958,16 @@ const createDemoFileStore = () => ({
 
     if (!Array.isArray(data.audits)) {
       data.audits = [];
+      changed = true;
+    }
+
+    if (!Array.isArray(data.favoritePlayers)) {
+      data.favoritePlayers = [];
+      changed = true;
+    }
+
+    if (!Array.isArray(data.favoriteTeams)) {
+      data.favoriteTeams = [];
       changed = true;
     }
 
@@ -1068,6 +1324,116 @@ const createDemoFileStore = () => ({
       return false;
     }
     session.revokedAt = new Date().toISOString();
+    await writeDemoStore(data);
+    return true;
+  },
+
+  async upsertFavoritePlayer({ userId, provider, externalId, playerName, teamName, sport, position, imageUrl, rawPayload }) {
+    const data = await readDemoStore();
+    const existing = data.favoritePlayers.find(
+      (entry) => entry.userId === userId && entry.provider === provider && entry.externalId === externalId
+    );
+
+    if (existing) {
+      existing.playerName = playerName;
+      existing.teamName = teamName;
+      existing.sport = sport;
+      existing.position = position;
+      existing.imageUrl = imageUrl;
+      existing.rawPayload = rawPayload;
+      await writeDemoStore(data);
+      return existing;
+    }
+
+    const favorite = {
+      id: data.nextFavoriteId,
+      userId,
+      provider,
+      externalId,
+      playerName,
+      teamName,
+      sport,
+      position,
+      imageUrl,
+      rawPayload,
+      createdAt: new Date().toISOString(),
+    };
+    data.nextFavoriteId += 1;
+    data.favoritePlayers.unshift(favorite);
+    await writeDemoStore(data);
+    return favorite;
+  },
+
+  async listFavoritePlayers(userId) {
+    const data = await readDemoStore();
+    return data.favoritePlayers
+      .filter((entry) => entry.userId === userId)
+      .sort((left, right) => String(right.createdAt).localeCompare(String(left.createdAt)));
+  },
+
+  async deleteFavoritePlayer({ userId, externalId }) {
+    const data = await readDemoStore();
+    const before = data.favoritePlayers.length;
+    data.favoritePlayers = data.favoritePlayers.filter(
+      (entry) => !(entry.userId === userId && entry.externalId === externalId)
+    );
+    if (data.favoritePlayers.length === before) {
+      return false;
+    }
+    await writeDemoStore(data);
+    return true;
+  },
+
+  async upsertFavoriteTeam({ userId, provider, externalId, teamName, leagueName, country, badgeUrl, rawPayload }) {
+    const data = await readDemoStore();
+    const existing = data.favoriteTeams.find(
+      (entry) => entry.userId === userId && entry.provider === provider && entry.externalId === externalId
+    );
+
+    if (existing) {
+      existing.teamName = teamName;
+      existing.leagueName = leagueName;
+      existing.country = country;
+      existing.badgeUrl = badgeUrl;
+      existing.rawPayload = rawPayload;
+      await writeDemoStore(data);
+      return existing;
+    }
+
+    const favorite = {
+      id: data.nextFavoriteId,
+      userId,
+      provider,
+      externalId,
+      teamName,
+      leagueName,
+      country,
+      badgeUrl,
+      rawPayload,
+      createdAt: new Date().toISOString(),
+    };
+    data.nextFavoriteId += 1;
+    data.favoriteTeams.unshift(favorite);
+    await writeDemoStore(data);
+    return favorite;
+  },
+
+  async listFavoriteTeams(userId) {
+    const data = await readDemoStore();
+    return data.favoriteTeams
+      .filter((entry) => entry.userId === userId)
+      .sort((left, right) => String(right.createdAt).localeCompare(String(left.createdAt)));
+  },
+
+  async deleteFavoriteTeam({ userId, externalId }) {
+    const data = await readDemoStore();
+    const before = data.favoriteTeams.length;
+    data.favoriteTeams = data.favoriteTeams.filter(
+      (entry) => !(entry.userId === userId && entry.externalId === externalId)
+    );
+    if (data.favoriteTeams.length === before) {
+      return false;
+    }
     await writeDemoStore(data);
     return true;
   },

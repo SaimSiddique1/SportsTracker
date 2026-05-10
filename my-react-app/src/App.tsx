@@ -13,6 +13,8 @@ import SearchResultsPage from "./assets/pages/SearchResultsPage";
 import { searchPlayer } from "./sportsdbaAPI";
 import "./App.css";
 
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:5001";
+
 const buildFallbackImage = (name: string) =>
   `data:image/svg+xml;utf8,${encodeURIComponent(`
     <svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256">
@@ -36,9 +38,19 @@ const featuredPlayerCatalog: Record<string, { name: string; team: string; goals:
   "bukayo saka": { name: "Bukayo Saka", team: "Arsenal", goals: 16, assists: 11, imageUrl: buildFallbackImage("Bukayo Saka") },
 };
 
+type FavoritePlayerRecord = {
+  externalId: string;
+  playerName: string;
+  teamName?: string | null;
+  sport?: string | null;
+  position?: string | null;
+  imageUrl?: string | null;
+};
+
 function AppLayout() {
   const navigate = useNavigate();
   const [isAdmin, setIsAdmin] = useState(false);
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [maintenanceMode, setMaintenanceMode] = useState(false);
   const [maintenanceMessage, setMaintenanceMessage] = useState("");
   const [homeHeroHeadline, setHomeHeroHeadline] = useState("Welcome to Sports Tracker!");
@@ -47,22 +59,27 @@ function AppLayout() {
     { name: "Lionel Messi", team: "Inter Miami", goals: 18, assists: 11, imageUrl: buildFallbackImage("Lionel Messi") },
     { name: "Erling Haaland", team: "Manchester City", goals: 21, assists: 4, imageUrl: buildFallbackImage("Erling Haaland") },
   ]);
+  const [favoritePlayers, setFavoritePlayers] = useState<Array<{ name: string; team: string; position: string; sport: string; imageUrl: string; externalId: string }>>([]);
   const [isMaintenanceLoading, setIsMaintenanceLoading] = useState(true);
 
   useEffect(() => {
     const syncUserRole = () => {
       const rawUser = localStorage.getItem("user");
+      const token = localStorage.getItem("token");
 
-      if (!rawUser) {
+      if (!rawUser || !token) {
         setIsAdmin(false);
+        setIsLoggedIn(false);
         return;
       }
 
       try {
         const parsedUser = JSON.parse(rawUser);
         setIsAdmin(parsedUser?.role === "admin");
+        setIsLoggedIn(true);
       } catch {
         setIsAdmin(false);
+        setIsLoggedIn(false);
       }
     };
 
@@ -73,6 +90,70 @@ function AppLayout() {
     return () => {
       window.removeEventListener("auth-changed", syncUserRole);
       window.removeEventListener("storage", syncUserRole);
+    };
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadFavoritePlayers = async () => {
+      const token = localStorage.getItem("token");
+
+      if (!token) {
+        setFavoritePlayers([]);
+        return;
+      }
+
+      try {
+        const response = await fetch(`${API_BASE_URL}/api/favorites/players`, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
+        const data = await response.json();
+
+        if (!response.ok || cancelled) {
+          setFavoritePlayers([]);
+          return;
+        }
+
+        const favorites = Array.isArray(data.favorites)
+          ? (data.favorites as FavoritePlayerRecord[]).slice(0, 4)
+          : [];
+
+        const enrichedFavorites = await Promise.all(
+          favorites.map(async (favorite) => {
+            const fallbackName = favorite.playerName || "Favorite Player";
+            const fallbackTeam = favorite.teamName || "Saved Favorite";
+            const fallbackImage = favorite.imageUrl || buildFallbackImage(fallbackName);
+            return {
+              externalId: favorite.externalId,
+              name: fallbackName,
+              team: fallbackTeam,
+              position: favorite.position || "Player role",
+              sport: favorite.sport || "Football",
+              imageUrl: fallbackImage,
+            };
+          })
+        );
+
+        if (!cancelled) {
+          setFavoritePlayers(enrichedFavorites);
+        }
+      } catch (error) {
+        console.error("Favorite players load error:", error);
+        if (!cancelled) {
+          setFavoritePlayers([]);
+        }
+      }
+    };
+
+    loadFavoritePlayers();
+    window.addEventListener("auth-changed", loadFavoritePlayers);
+
+    return () => {
+      cancelled = true;
+      window.removeEventListener("auth-changed", loadFavoritePlayers);
     };
   }, []);
 
@@ -304,6 +385,85 @@ function AppLayout() {
                         ))}
                       </div>
                     </div>
+
+                    {isLoggedIn ? (
+                      <div>
+                        <div className="mb-6 flex items-end justify-between gap-4">
+                          <div>
+                            <h3 className="text-2xl font-black tracking-tighter">Favorite Players</h3>
+                            <p className="mt-1 text-xs font-bold uppercase tracking-[0.2em] text-slate-500">
+                              Saved from your backend favorites
+                            </p>
+                          </div>
+                          <button
+                            onClick={() => navigate("/search?mode=players")}
+                            className="border-2 border-black bg-white px-4 py-2 text-[10px] font-black uppercase tracking-[0.2em]"
+                          >
+                            Find More
+                          </button>
+                        </div>
+                        {favoritePlayers.length ? (
+                          <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+                            {favoritePlayers.map((player) => (
+                              <article
+                                key={player.externalId}
+                                className="border-2 border-black bg-white transition-all dark:border-zinc-800 dark:bg-zinc-900"
+                              >
+                                <div className="grid grid-cols-[8rem_1fr] gap-4 p-6">
+                                  <img
+                                    src={player.imageUrl}
+                                    alt={player.name}
+                                    className="h-32 w-32 border-2 border-black object-cover"
+                                  />
+
+                                  <div>
+                                    <div className="mb-4 flex items-start justify-between">
+                                      <div>
+                                        <h3 className="text-2xl font-black leading-none tracking-tighter">{player.name}</h3>
+                                        <p className="mt-1 text-[10px] font-black text-yellow-600">{player.team}</p>
+                                      </div>
+                                      <div className="flex h-8 w-8 items-center justify-center bg-slate-100 text-xs font-black dark:bg-zinc-800">
+                                        F
+                                      </div>
+                                    </div>
+
+                                    <div className="space-y-2">
+                                      <div className="flex justify-between border-b-2 border-slate-50 pb-1 dark:border-zinc-800">
+                                        <span className="text-[10px] font-black opacity-40">Position</span>
+                                        <span className="font-black">{player.position}</span>
+                                      </div>
+                                      <div className="flex justify-between border-b-2 border-slate-50 pb-1 dark:border-zinc-800">
+                                        <span className="text-[10px] font-black opacity-40">Sport</span>
+                                        <span className="font-black">{player.sport}</span>
+                                      </div>
+                                    </div>
+                                  </div>
+                                </div>
+
+                                <button
+                                  className="w-full border-t-2 border-black bg-yellow-400 py-3 text-[10px] font-black tracking-widest text-black transition-all hover:bg-black hover:text-white"
+                                  onClick={() =>
+                                    navigate(
+                                      `/search?q=${encodeURIComponent(player.name)}&mode=players&compare=${encodeURIComponent(player.name)}`
+                                    )
+                                  }
+                                  type="button"
+                                >
+                                  Compare Player
+                                </button>
+                              </article>
+                            ))}
+                          </div>
+                        ) : (
+                          <div className="border-2 border-dashed border-slate-300 bg-white p-6">
+                            <p className="text-lg font-black">No favorite players saved yet.</p>
+                            <p className="mt-2 text-sm font-semibold text-slate-500">
+                              Save players from search results and they will show up here on the home page.
+                            </p>
+                          </div>
+                        )}
+                      </div>
+                    ) : null}
                   </section>
 
                   <aside className="lg:col-span-4">
