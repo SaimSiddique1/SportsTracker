@@ -1,90 +1,104 @@
-<<<<<<< Updated upstream
 # SportsTracker
-Github Repository for CMSC 447 Group Project
-Test edit for the SCRUM 21 branch, should only exist here!!!
-# SportsTracker
-Github Repository for CMSC 447 Group Project
-Test edit for the SCRUM 21 branch, should only exist here!!!
 
+SportsTracker is a React + Vite frontend with an Express backend. The backend can run against PostgreSQL for normal development, or it can fall back to a local JSON demo store when `DATABASE_URL` is not set.
 
+## Requirements
 
+- Node.js LTS
+- npm
+- PostgreSQL 14+ for the real database path
+- Docker Desktop, optional, if you want the included PostgreSQL container
 
+## First-Time Setup
 
+Install dependencies from the repo root:
 
+```sh
+npm run install:all
+```
 
+Create local env files from the templates:
 
+```sh
+copy server\.env.example server\.env
+copy my-react-app\.env.example my-react-app\.env
+```
 
+On macOS/Linux, use `cp` instead of `copy`.
 
+## Database Setup
 
+If you use Docker, start the included PostgreSQL container:
 
+```sh
+docker compose up -d postgres
+```
 
-NOTES: on .env, don't put .env folder in /src
+Or create a local PostgreSQL database named `sportstracker` yourself:
 
-.env variable set up for API keys 
+```sql
+CREATE DATABASE sportstracker;
+```
 
-this is for Football98 RapidAPI & SPORTSDB API keys
+Then set `DATABASE_URL` in `server/.env`. The default template is:
 
-Your frontend .env should then be:
+```env
+DATABASE_URL=postgresql://postgres:postgres@localhost:5432/sportstracker
+```
 
-my-react-app/.env
+Update the username and password to match your local PostgreSQL account. When the backend starts, it creates and updates the application tables automatically.
 
-VITE_SOCCER_API_KEY=your_rapidapi_key_here
+If `DATABASE_URL` is removed or left unset, the backend uses `server/data/app-data.json` as a demo store. That is useful for quick local testing, but PostgreSQL is the intended database setup.
 
-VITE_SPORTSDB_API_KEY=XXX
+## Environment Variables
 
+Frontend file: `my-react-app/.env`
 
-
-.env variable for server folder 
-
-server/.env
-
-PORT=5000
-
-DATABASE_URL=postgresql://HOST_USERNAME@localhost:5432/sportstracker
-
-JWT_SECRET=my_super_long_random_secret_2026_sportstracker
-
-
-
-
-
-=======
-# SportsTracker
-Github Repository for CMSC 447 Group Project
-Test edit for the SCRUM 21 branch, should only exist here!!!
-
-
-
-
-
-
-
-
-
-
-
-
-
-NOTES: do not commit real `.env` files.
-
-Use the example files as templates:
-
-- `my-react-app/.env.example` -> copy values into `my-react-app/.env`
-- `server/.env.example` -> copy values into `server/.env`
-
-Frontend variables:
-
+```env
 VITE_API_BASE_URL=http://localhost:5001
 VITE_SOCCER_API_KEY=your_rapidapi_key_here
 VITE_SPORTSDB_API_KEY=your_sportsdb_api_key_here
+```
 
-Server variables:
+Server file: `server/.env`
 
+```env
 PORT=5001
-DATABASE_URL=postgresql://YOUR_USERNAME@localhost:5432/sportstracker
+CLIENT_BASE_URL=http://localhost:5173
+DATABASE_URL=postgresql://postgres:postgres@localhost:5432/sportstracker
 JWT_SECRET=replace_with_a_long_random_secret
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=587
+SMTP_SECURE=false
+SMTP_USER=sportstrackercmsc447@gmail.com
+SMTP_PASS=your_gmail_app_password_here
+SMTP_FROM="Sports Tracker <sportstrackercmsc447@gmail.com>"
+APP_NAME=Sports Tracker
+```
 
+Do not commit real `.env` files or real SMTP passwords.
 
+## Running The App
 
+Start the backend:
 
->>>>>>> Stashed changes
+```sh
+npm run dev:server
+```
+
+Start the frontend in a second terminal:
+
+```sh
+npm run dev:client
+```
+
+The frontend runs at `http://localhost:5173`, and the backend runs at `http://localhost:5001`.
+
+The first registered account becomes an admin account automatically.
+
+## Useful Commands
+
+```sh
+npm run build
+npm run test
+```

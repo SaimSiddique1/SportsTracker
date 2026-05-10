@@ -1,0 +1,16 @@
+services:
+  postgres:
+    image: postgres:16
+    container_name: sportstracker-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: sportstracker
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - sportstracker-postgres-data:/var/lib/postgresql/data
+
+volumes:
+  sportstracker-postgres-data:
