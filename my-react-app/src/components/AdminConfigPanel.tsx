@@ -407,27 +407,26 @@ function AdminConfigPanel() {
 
   return (
     <>
-      <section className="overflow-hidden border-4 border-black bg-white text-black shadow-[14px_14px_0_0_rgba(0,0,0,1)]">
-      <div className="border-b-4 border-black bg-yellow-400 px-6 py-6 text-black">
+      <section aria-labelledby="admin-panel-heading" className="overflow-hidden border-4 border-black bg-white text-black shadow-[14px_14px_0_0_rgba(0,0,0,1)] dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100 dark:shadow-[14px_14px_0_0_rgba(250, 204, 21, 0.15)]">
+      <div className="border-b-4 border-black bg-yellow-400 px-6 py-6 text-black dark:border-zinc-700">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div className="max-w-4xl">
-            <p className="text-[11px] font-black uppercase tracking-[0.35em]">
-              Admin Control Center
-            </p>
-            <h3 className="mt-3 text-5xl font-black tracking-tight">
+            <p className="text-[11px] font-black uppercase tracking-[0.35em]">Admin Control Center</p>
+            <h2 id="admin-panel-heading" className="mt-3 text-5xl font-black tracking-tight">
               Admin Settings
-            </h3>
+            </h2>
             <p className="mt-3 text-lg font-bold leading-8">
               Open a focused admin panel for user access, site controls, homepage content, and security activity.
             </p>
           </div>
           <button
             type="button"
+            aria-haspopup="dialog"
             onClick={() => {
               loadDashboard(search);
               setModalOpen(true);
             }}
-            className="border-4 border-black bg-black px-8 py-5 text-[11px] font-black uppercase tracking-[0.25em] text-white transition-all hover:bg-white hover:text-black"
+            className="border-4 border-black bg-black px-8 py-5 text-[11px] font-black uppercase tracking-[0.25em] text-white transition-all hover:bg-white hover:text-black focus-visible:outline focus-visible:outline-offset-2 focus-visible:outline-black"
           >
             Admin Access
           </button>
@@ -438,67 +437,71 @@ function AdminConfigPanel() {
       {modalOpen
         ? createPortal(
             <div
-              className="fixed inset-0 z-[9999] overflow-y-auto bg-black/70 px-4 py-10"
+              role="dialog"
+              aria-labelledby="admin-modal-heading"
+              className="fixed inset-0 z-9999 overflow-y-auto bg-black/70 px-4 py-10"
               onClick={() => setModalOpen(false)}
             >
               <div
-                className="mx-auto w-full max-w-7xl border-4 border-black bg-white text-black shadow-[14px_14px_0_0_rgba(0,0,0,1)]"
+                className="mx-auto w-full max-w-7xl border-4 border-black bg-white text-black shadow-[14px_14px_0_0_rgba(0,0,0,1)] outline-none dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100"
                 onClick={(event) => event.stopPropagation()}
               >
-                <div className="border-b-4 border-black bg-yellow-400 px-6 py-5">
+                <div className="border-b-4 border-black bg-yellow-400 px-6 py-5 text-black dark:border-zinc-700">
                   <div className="flex flex-wrap items-start justify-between gap-4">
                     <div className="max-w-4xl">
                       <p className="text-[11px] font-black uppercase tracking-[0.35em]">
                         Admin Control Center
                       </p>
-                      <h4 className="mt-2 text-4xl font-black tracking-tight">
+                      <h2 id="admin-modal-heading" className="mt-2 text-4xl font-black tracking-tight">
                         Admin Settings
-                      </h4>
+                      </h2>
                       <p className="mt-2 text-sm font-bold text-black/80">
                         The most important admin controls for SportsTracker are grouped here.
                       </p>
                     </div>
                     <button
                       type="button"
+                      aria-label="Close admin panel"
                       onClick={() => setModalOpen(false)}
-                      className="border-4 border-black bg-white px-4 py-3 text-xs font-black uppercase tracking-[0.25em] text-black hover:bg-black hover:text-white"
+                      className="border-4 border-black bg-white px-4 py-3 text-xs font-black uppercase tracking-[0.25em] text-black hover:bg-black hover:text-white focus-visible:outline focus-visible:outline-offset-2 focus-visible:outline-black"
                     >
                       Close
                     </button>
                   </div>
                 </div>
 
-                <div className="bg-white p-6 text-black">
+                <div className="bg-white p-6 text-black dark:bg-zinc-900 dark:text-zinc-100">
                   <div className="mb-8 grid gap-4 md:grid-cols-3">
-                    <div className="border-2 border-black bg-yellow-50 p-4">
-                      <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">Admin Role</p>
-                      <p className="mt-2 text-2xl font-black">{user.role}</p>
+                    <div className="border-2 border-black bg-yellow-50 p-4 dark:border-zinc-700 dark:bg-zinc-800">
+                      <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500 dark:text-zinc-400">Admin Role</p>
+                      <p className="mt-2 text-2xl font-black dark:text-zinc-100">{user.role}</p>
                     </div>
-                    <div className="border-2 border-black bg-yellow-50 p-4">
-                      <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">Last Config Update</p>
-                      <p className="mt-2 text-lg font-black">
+                    <div className="border-2 border-black bg-yellow-50 p-4 dark:border-zinc-700 dark:bg-zinc-800">
+                      <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500 dark:text-zinc-400">Last Config Update</p>
+                      <p className="mt-2 text-lg font-black dark:text-zinc-100">
                         {config.updatedAt ? new Date(config.updatedAt).toLocaleString() : "No updates yet"}
                       </p>
                     </div>
-                    <div className="border-2 border-black bg-yellow-50 p-4">
-                      <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">Updated By</p>
-                      <p className="mt-2 text-2xl font-black">{config.updatedBy ?? "N/A"}</p>
+                    <div className="border-2 border-black bg-yellow-50 p-4 dark:border-zinc-700 dark:bg-zinc-800">
+                      <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500 dark:text-zinc-400">Updated By</p>
+                      <p className="mt-2 text-2xl font-black dark:text-zinc-100">{config.updatedBy ?? "N/A"}</p>
                     </div>
                   </div>
 
-                  <section className="border-4 border-black bg-slate-50 p-5">
-                    <div className="mb-5">
-                      <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">Access Control</p>
-                      <h5 className="mt-2 text-3xl font-black">Registration And Site State</h5>
-                      <p className="mt-2 text-sm font-semibold text-slate-600">
+                  <section aria-labelledby="system-config-heading" className="border-4 border-black bg-slate-50 p-5 dark:border-zinc-700 dark:bg-zinc-800">
+                    <header className="mb-5">
+                      <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500 dark:text-zinc-400">Access Control</p>
+                      <h3 id="system-config-heading" className="mt-2 text-3xl font-black">Registration And Site State</h3>
+                      <p className="mt-2 text-sm font-semibold text-slate-600 dark:text-zinc-400">
                         The core app-wide controls that affect who can use the system and what state the site is in.
                       </p>
-                    </div>
+                    </header>
+
                   <form className="grid gap-6 md:grid-cols-2" onSubmit={saveSystemConfig}>
-                    <label className="flex items-center justify-between border-2 border-black bg-yellow-50 px-4 py-4 text-sm font-bold text-black shadow-[6px_6px_0_0_rgba(0,0,0,1)]">
-                      <span className="text-lg font-black tracking-tight text-black">Enable new user registration</span>
+                    <label className="flex items-center justify-between border-2 border-black bg-yellow-50 px-4 py-4 text-sm font-bold text-black shadow-[6px_6px_0_0_rgba(0,0,0,1)] dark:border-zinc-700 dark:bg-zinc-800">
+                      <span className="text-lg font-black tracking-tight dark:text-zinc-100">Enable new user registration</span>
                       <input
-                        className="h-6 w-6 accent-blue-600"
+                        className="h-6 w-6 accent-yellow-400"
                         type="checkbox"
                         name="registrationEnabled"
                         checked={config.registrationEnabled}
@@ -506,10 +509,10 @@ function AdminConfigPanel() {
                       />
                     </label>
 
-                    <label className="flex items-center justify-between border-2 border-black bg-yellow-50 px-4 py-4 text-sm font-bold text-black shadow-[6px_6px_0_0_rgba(0,0,0,1)]">
-                      <span className="text-lg font-black tracking-tight text-black">Maintenance mode</span>
+                    <label className="flex items-center justify-between border-2 border-black bg-yellow-50 px-4 py-4 text-sm font-bold text-black shadow-[6px_6px_0_0_rgba(0,0,0,1)] dark:border-zinc-700 dark:bg-zinc-800">
+                      <span className="text-lg font-black tracking-tight dark:text-zinc-100">Maintenance mode</span>
                       <input
-                        className="h-6 w-6 accent-blue-600"
+                        className="h-6 w-6 accent-yellow-400"
                         type="checkbox"
                         name="maintenanceMode"
                         checked={config.maintenanceMode}
@@ -518,11 +521,11 @@ function AdminConfigPanel() {
                     </label>
 
                     <label className="space-y-2">
-                      <span className="block text-xs font-black uppercase tracking-[0.2em] text-slate-700">
+                      <span className="block text-xs font-black uppercase tracking-[0.2em] text-slate-700 dark:text-zinc-300">
                         Maintenance Message
                       </span>
                       <textarea
-                        className="min-h-36 w-full border-2 border-black bg-white px-4 py-4 text-base font-semibold text-black outline-none focus:bg-yellow-50"
+                        className="min-h-36 w-full border-2 border-black bg-white px-4 py-3 text-black outline-none focus:bg-yellow-50 dark:bg-zinc-800 dark:border-zinc-600 dark:text-zinc-100 dark:focus:bg-zinc-700 dark:placeholder:text-zinc-400"
                         name="maintenanceMessage"
                         value={config.maintenanceMessage}
                         onChange={handleSystemChange}
@@ -531,19 +534,19 @@ function AdminConfigPanel() {
                     </label>
 
                     <div className="md:col-span-2 grid gap-4 lg:grid-cols-3">
-                      <div className="border-2 border-black bg-yellow-50 p-4 text-black shadow-[6px_6px_0_0_rgba(0,0,0,1)]">
-                        <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">Registration</p>
-                        <p className="mt-2 text-4xl font-black text-black">{config.registrationEnabled ? "Open" : "Locked"}</p>
+                      <div className="border-2 border-black bg-yellow-50 p-4 text-black shadow-[6px_6px_0_0_rgba(0,0,0,1)] dark:border-zinc-700 dark:bg-zinc-800">
+                        <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500 dark:text-zinc-400">Registration</p>
+                        <p className="mt-2 text-4xl font-black dark:text-zinc-100">{config.registrationEnabled ? "Open" : "Locked"}</p>
                       </div>
 
-                      <div className="border-2 border-black bg-yellow-50 p-4 text-black shadow-[6px_6px_0_0_rgba(0,0,0,1)]">
-                        <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">Maintenance</p>
-                        <p className="mt-2 text-4xl font-black text-black">{config.maintenanceMode ? "Enabled" : "Disabled"}</p>
+                      <div className="border-2 border-black bg-yellow-50 p-4 text-black shadow-[6px_6px_0_0_rgba(0,0,0,1)] dark:border-zinc-700 dark:bg-zinc-800">
+                        <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500 dark:text-zinc-400">Maintenance</p>
+                        <p className="mt-2 text-4xl font-black dark:text-zinc-100">{config.maintenanceMode ? "Enabled" : "Disabled"}</p>
                       </div>
 
-                      <div className="border-2 border-black bg-yellow-50 p-4 text-black shadow-[6px_6px_0_0_rgba(0,0,0,1)]">
-                        <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">Audit Timestamp</p>
-                        <p className="mt-2 text-lg font-black text-black">
+                      <div className="border-2 border-black bg-yellow-50 p-4 text-black shadow-[6px_6px_0_0_rgba(0,0,0,1)] dark:border-zinc-700 dark:bg-zinc-800">
+                        <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500 dark:text-zinc-400">Audit Timestamp</p>
+                        <p className="mt-2 text-4xl font-black dark:text-zinc-100">
                           {config.updatedAt ? new Date(config.updatedAt).toLocaleString() : "No updates yet"}
                         </p>
                       </div>
@@ -553,7 +556,7 @@ function AdminConfigPanel() {
                       <button
                         type="submit"
                         disabled={isSavingSystem || isLoading}
-                        className="w-full border-2 border-black bg-black px-4 py-5 text-base font-black uppercase tracking-[0.3em] text-white transition-all hover:bg-yellow-400 hover:text-black"
+                        className="w-full border-2 border-black bg-black px-4 py-5 text-base font-black uppercase tracking-[0.3em] text-white transition-all hover:bg-yellow-400 hover:text-black focus-visible:outline focus-visible:outline-offset-2 focus-visible:outline-yellow-400 disabled:opacity-50 dark:border-zinc-600 dark:bg-zinc-700 dark:hover:bg-yellow-400 dark:hover:text-black"
                       >
                         {isSavingSystem ? "Saving Configuration..." : "Save Configuration"}
                       </button>
@@ -563,162 +566,192 @@ function AdminConfigPanel() {
                   </section>
 
                   <div className="mt-10 grid gap-8 xl:grid-cols-2">
-                    <section className="border-4 border-black bg-slate-50 p-5">
-            <div className="flex flex-wrap items-end justify-between gap-3">
-              <div>
-                <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">User Management</p>
-                <h5 className="mt-2 text-3xl font-black">Accounts And Roles</h5>
-              </div>
-              <div className="flex gap-2">
-                <input
-                  value={search}
-                  onChange={(event) => setSearch(event.target.value)}
-                  placeholder="Search users"
-                  className="border-2 border-black bg-white px-3 py-2 text-sm font-semibold text-black"
-                />
-                <button
-                  type="button"
-                  onClick={() => loadDashboard(search)}
-                  className="border-2 border-black bg-yellow-400 px-4 py-2 text-xs font-black uppercase tracking-[0.2em]"
-                >
-                  Search
-                </button>
-              </div>
-            </div>
-
-            <div className="mt-5 space-y-3">
-              {users.map((entry) => (
-                <article key={entry.id} className="border-2 border-black bg-white p-4">
-                  <div className="space-y-4">
-                    <div>
-                      <p className="text-lg font-black">{entry.username}</p>
-                      <p className="text-sm font-semibold text-slate-600">{entry.email}</p>
-                      <p className="mt-1 text-xs font-black uppercase tracking-[0.2em] text-slate-500">
-                        {entry.disabled ? "Disabled" : "Active"}
-                      </p>
-                    </div>
-                    <div className="flex flex-wrap items-center gap-2">
-                      {entry.id === 1 ? (
-                        <div className="border-2 border-black bg-yellow-100 px-3 py-2 text-xs font-black uppercase tracking-[0.2em] text-black">
-                          Primary Admin
+                    <section aria-labelledby="user-mgmt-heading" className="border-4 border-black bg-slate-50 p-5 dark:border-zinc-700 dark:bg-zinc-800">
+                      <div className="flex flex-wrap items-end justify-between gap-3">
+                        <div>
+                          <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500 dark:text-zinc-400">User Management</p>
+                          <h3 id="user-mgmt-heading" className="mt-2 text-3xl font-black">Accounts And Roles</h3>
                         </div>
-                      ) : (
-                        <>
+                        <div className="flex gap-2" role="search" aria-label="Search users">
+                          <label htmlFor="user-search" className="sr-only">Search users</label>
+                          <input
+                            id="user-search"
+                            value={search}
+                            onChange={(event) => setSearch(event.target.value)}
+                            placeholder="Search users"
+                            className="border-2 border-black bg-white px-3 py-2 text-sm font-semibold text-black outline-none focus:bg-yellow-50 dark:border-zinc-600 dark:bg-zinc-700 dark:text-zinc-100 dark:placeholder:text-zinc-400 dark:focus:bg-zinc-600"
+                          />
                           <button
                             type="button"
-                            onClick={() => updateUserAccess(entry, { role: entry.role === "admin" ? "user" : "admin" })}
-                            className="border-2 border-black bg-white px-3 py-2 text-xs font-black uppercase tracking-[0.2em]"
+                            onClick={() => loadDashboard(search)}
+                            className="border-2 border-black bg-yellow-400 px-4 py-2 text-xs font-black uppercase tracking-[0.2em] text-black hover:bg-black hover:text-white focus-visible:outline focus-visible:outline-offset-2 focus-visible:outline-yellow-400"
                           >
-                            Make {entry.role === "admin" ? "User" : "Admin"}
+                            Search
                           </button>
-                          <button
-                            type="button"
-                            onClick={() => updateUserAccess(entry, { disabled: !entry.disabled })}
-                            className="border-2 border-black bg-black px-3 py-2 text-xs font-black uppercase tracking-[0.2em] text-white"
-                          >
-                            {entry.disabled ? "Enable" : "Disable"}
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => deleteUserAccount(entry)}
-                            className="border-2 border-black bg-red-600 px-3 py-2 text-xs font-black uppercase tracking-[0.2em] text-white"
-                          >
-                            Delete
-                          </button>
-                        </>
-                      )}
-                    </div>
-                  </div>
-                </article>
-              ))}
-            </div>
+                        </div>
+                      </div>
+
+                      <ul role="list" className="mt-5 space-y-3">
+                        {users.map((entry) => (
+                          <li key={entry.id} className="border-2 border-black bg-white p-4 dark:border-zinc-700 dark:bg-zinc-900">
+                            <div className="space-y-4">
+                              <div>
+                                <p className="text-lg font-black dark:text-zinc-100">{entry.username}</p>
+                                <p className="text-sm font-semibold text-slate-600 dark:text-zinc-400">{entry.email}</p>
+                                <p className="mt-1 text-xs font-black uppercase tracking-[0.2em] text-slate-500 dark:text-zinc-500">
+                                  {entry.disabled ? "Disabled" : "Active"}
+                                </p>
+                              </div>
+                              <div className="flex flex-wrap items-center gap-2">
+                                {entry.id === 1 ? (
+                                  <div className="border-2 border-black bg-yellow-100 px-3 py-2 text-xs font-black uppercase tracking-[0.2em] text-black dark:border-zinc-600 dark:bg-yellow-900/40 dark:text-yellow-300">
+                                    Primary Admin
+                                  </div>
+                                ) : (
+                                  <>
+                                    <button
+                                      type="button"
+                                      aria-label={`Make ${entry.username} ${entry.role === "admin" ? "a regular user" : "an admin"}`}
+                                      onClick={() => updateUserAccess(entry, { role: entry.role === "admin" ? "user" : "admin" })}
+                                      className="border-2 border-black bg-white px-3 py-2 text-xs font-black uppercase tracking-[0.2em] text-black transition-all hover:bg-black hover:text-white focus-visible:outline focus-visible:outline-offset-2 focus-visible:outline-yellow-400 dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-100 dark:hover:bg-zinc-600"
+                                    >
+                                      Make {entry.role === "admin" ? "User" : "Admin"}
+                                    </button>
+                                    <button
+                                      type="button"
+                                      aria-label={`${entry.disabled ? "Enable" : "Disable"} ${entry.username}`}
+                                      onClick={() => updateUserAccess(entry, { disabled: !entry.disabled })}
+                                      className="border-2 border-black bg-black px-3 py-2 text-xs font-black uppercase tracking-[0.2em] text-white transition-all hover:bg-yellow-400 hover:text-black focus-visible:outline focus-visible:outline-offset-2 focus-visible:outline-yellow-400 dark:border-zinc-600 dark:bg-zinc-700 dark:hover:bg-yellow-400 dark:hover:text-black"
+                                    >
+                                      {entry.disabled ? "Enable" : "Disable"}
+                                    </button>
+                                    <button
+                                      type="button"
+                                      aria-label={`Delete ${entry.username}`}
+                                      onClick={() => deleteUserAccount(entry)}
+                                      className="border-2 border-red-600 bg-red-600 px-3 py-2 text-xs font-black uppercase tracking-[0.2em] text-white transition-all hover:bg-red-700 focus-visible:outline focus-visible:outline-offset-2 focus-visible:outline-red-400"
+                                    >
+                                      Delete
+                                    </button>
+                                  </>
+                                )}
+                              </div>
+                            </div>
+                          </li>
+                        ))}
+                      </ul>
                     </section>
 
-                    <section className="border-4 border-black bg-slate-50 p-5">
-            <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">Content Moderation</p>
-            <h5 className="mt-2 text-3xl font-black">Homepage Featured Content</h5>
-            <p className="mt-2 text-sm font-semibold text-slate-600">
-              Keep this focused on the content your users actually see on the home page.
-            </p>
-            <form className="mt-5 space-y-4" onSubmit={saveContentModeration}>
-              <input
-                className="w-full border-2 border-black bg-white px-4 py-3 text-lg font-bold text-black"
-                name="homeHeroHeadline"
-                value={content.homeHeroHeadline}
-                onChange={handleContentChange}
-                placeholder="Homepage headline"
-              />
-              <textarea
-                className="min-h-28 w-full border-2 border-black bg-white px-4 py-3 text-base font-semibold text-black"
-                name="homeHeroSubtext"
-                value={content.homeHeroSubtext}
-                onChange={handleContentChange}
-                placeholder="Homepage subtext"
-              />
-              <input
-                className="w-full border-2 border-black bg-white px-4 py-3 text-base font-semibold text-black"
-                name="featuredPlayers"
-                value={featuredPlayersInput}
-                onChange={handleContentChange}
-                placeholder="Featured players, comma separated"
-              />
-              <button
-                type="submit"
-                disabled={isSavingContent}
-                className="w-full border-2 border-black bg-black px-4 py-4 text-sm font-black uppercase tracking-[0.2em] text-white"
-              >
-                {isSavingContent ? "Saving Content..." : "Save Content Controls"}
-              </button>
-              {contentMessage ? <p className="text-sm font-semibold">{contentMessage}</p> : null}
-            </form>
-                    </section>
-
-                    <section className="border-4 border-black bg-slate-50 p-5">
-            <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">Audit And Security</p>
-            <h5 className="mt-2 text-3xl font-black">Audit Trail And Active Sessions</h5>
-            <p className="mt-2 text-sm font-semibold text-slate-600">
-              Review recent admin actions and revoke sessions when you need to cut off access quickly.
-            </p>
-
-            <div className="mt-5 space-y-3">
-              <h6 className="text-lg font-black">Recent Audit Events</h6>
-              {audits.map((entry) => (
-                <article key={entry.id} className="border-2 border-black bg-white p-3">
-                  <p className="text-sm font-black">{entry.summary}</p>
-                  <p className="mt-1 text-xs font-semibold text-slate-500">
-                    {new Date(entry.createdAt).toLocaleString()} | {entry.actionType}
-                  </p>
-                </article>
-              ))}
-            </div>
-
-            <div className="mt-6 space-y-3">
-              <h6 className="text-lg font-black">Active Sessions</h6>
-              {sessions.map((entry) => (
-                <article key={entry.id} className="border-2 border-black bg-white p-3">
-                  <div className="flex flex-wrap items-start justify-between gap-3">
-                    <div>
-                      <p className="text-sm font-black">{entry.username} ({entry.role})</p>
-                      <p className="text-xs font-semibold text-slate-500">
-                        Last seen {new Date(entry.lastSeenAt).toLocaleString()}
+                    <section aria-labelledby="content-mod-heading" className="border-4 border-black bg-slate-50 p-5 dark:border-zinc-700 dark:bg-zinc-800">
+                      <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500 dark:text-zinc-400">Content Moderation</p>
+                      <h3 id="content-mod-heading" className="mt-2 text-3xl font-black">Homepage Featured Content</h3>
+                      <p className="mt-2 text-sm font-semibold text-slate-600 dark:text-zinc-400">
+                        Keep this focused on the content your users actually see on the home page.
                       </p>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => revokeSession(entry.id)}
-                      className="border-2 border-black bg-white px-3 py-2 text-xs font-black uppercase tracking-[0.2em]"
-                    >
-                      Revoke
-                    </button>
-                  </div>
-                </article>
-              ))}
-            </div>
+
+                      <form className="mt-5 space-y-4" onSubmit={saveContentModeration}>
+                        <div className="space-y-1">
+                          <label htmlFor="homeHeroHeadline" className="block text-xs font-black uppercase tracking-[0.2em] dark:text-zinc-300">Homepage Headline</label>
+                          <input
+                            id="homeHeroHeadline"
+                            className="text-lg font-bold w-full border-2 border-black bg-white px-4 py-3 text-black outline-none focus:bg-yellow-50 dark:bg-zinc-800 dark:border-zinc-600 dark:text-zinc-100 dark:focus:bg-zinc-700 dark:placeholder:text-zinc-400"
+                            name="homeHeroHeadline"
+                            value={content.homeHeroHeadline}
+                            onChange={handleContentChange}
+                            placeholder="Homepage headline"
+                          />
+                        </div>
+
+                        <div className="space-y-1">
+                          <label htmlFor="homeHeroSubtext" className="block text-xs font-black uppercase tracking-[0.2em] dark:text-zinc-300">Homepage Subtext</label>
+                          <textarea
+                            id="homeHeroSubtext"
+                            className="min-h-28 w-full border-2 border-black bg-white px-4 py-3 text-black outline-none focus:bg-yellow-50 dark:bg-zinc-800 dark:border-zinc-600 dark:text-zinc-100 dark:focus:bg-zinc-700 dark:placeholder:text-zinc-400"
+                            name="homeHeroSubtext"
+                            value={content.homeHeroSubtext}
+                            onChange={handleContentChange}
+                            placeholder="Homepage subtext"
+                          />
+                        </div>
+
+                        <div className="space-y-1">
+                          <label htmlFor="featuredPlayers" className="block text-xs font-black uppercase tracking-[0.2em] dark:text-zinc-300">Featured Players</label>
+                          <input
+                            id="featuredPlayers"
+                            className="w-full border-2 border-black bg-white px-4 py-3 text-black outline-none focus:bg-yellow-50 dark:bg-zinc-800 dark:border-zinc-600 dark:text-zinc-100 dark:focus:bg-zinc-700 dark:placeholder:text-zinc-400"
+                            name="featuredPlayers"
+                            value={featuredPlayersInput}
+                            onChange={handleContentChange}
+                            placeholder="Featured players, comma separated"
+                          />
+                        </div>
+
+                        <button
+                          type="submit"
+                          disabled={isSavingContent}
+                          className="w-full border-2 border-black bg-black px-4 py-4 text-sm font-black uppercase tracking-[0.2em] text-white transition-all hover:bg-yellow-400 hover:text-black focus-visible:outline focus-visible:outline-offset-2 focus-visible:outline-yellow-400 disabled:opacity-50 dark:border-zinc-600 dark:bg-zinc-700 dark:hover:bg-yellow-400 dark:hover:text-black"
+                        >
+                          {isSavingContent ? "Saving Content..." : "Save Content Controls"}
+                        </button>
+                        {contentMessage ? <p role="status" aria-live="polite" className="text-sm font-semibold dark:text-zinc-300">{contentMessage}</p> : null}
+                      </form>
+                    </section>
+
+                    <section aria-labelledby="audit-heading" className="border-4 border-black bg-slate-50 p-5 dark:border-zinc-700 dark:bg-zinc-800">
+                      <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500 dark:text-zinc-400">Audit And Security</p>
+                      <h3 id="audit-heading" className="mt-2 text-3xl font-black">Audit Trail And Active Sessions</h3>
+                      <p className="mt-2 text-sm font-semibold text-slate-600 dark:text-zinc-400">
+                        Review recent admin actions and revoke sessions when you need to cut off access quickly.
+                      </p>
+
+                      <div className="mt-5 space-y-3">
+                        <h4 className="text-lg font-black">Recent Audit Events</h4>
+                        <ul role="list" className="space-y-3">
+                          {audits.map((entry) => (
+                            <li key={entry.id}>
+                              <article className="border-2 border-black bg-white p-3 dark:border-zinc-700 dark:bg-zinc-900">
+                                <p className="text-sm font-black dark:text-zinc-100">{entry.summary}</p>
+                                <p className="mt-1 text-xs font-semibold text-slate-500 dark:text-zinc-400">
+                                  {new Date(entry.createdAt).toLocaleString()} | {entry.actionType}
+                                </p>
+                              </article>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+
+                      <div className="mt-6 space-y-3">
+                        <h4 className="text-lg font-black">Active Sessions</h4>
+                        <ul role="list" className="space-y-3">
+                          {sessions.map((entry) => (
+                            <li key={entry.id}>
+                              <article className="border-2 border-black bg-white p-3 dark:border-zinc-700 dark:bg-zinc-900">
+                                <div className="flex flex-wrap items-start justify-between gap-3">
+                                  <div>
+                                    <p className="text-sm font-black dark:text-zinc-100">{entry.username}{" "} <span className="font-semibold text-slate-500 dark:text-zinc-400">({entry.role})</span></p>
+                                    <p className="text-xs font-semibold text-slate-500 dark:text-zinc-400">
+                                      Last seen {new Date(entry.lastSeenAt).toLocaleString()}
+                                    </p>
+                                  </div>
+                                  <button
+                                    type="button"
+                                    aria-label={`Revoke session for ${entry.username}`}
+                                    onClick={() => revokeSession(entry.id)}
+                                    className="border-2 border-black bg-white px-3 py-2 text-xs font-black uppercase tracking-[0.2em] text-black transition-all hover:bg-black hover:text-white focus-visible:outline focus-visible:outline-offset-2 focus-visible:outline-yellow-400 dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-100 dark:hover:bg-zinc-600"
+                                  >
+                                    Revoke
+                                  </button>
+                                </div>
+                              </article>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
                     </section>
                   </div>
 
                   {dashboardMessage ? (
-                    <div className="mt-6 border-2 border-black bg-yellow-100 p-4 text-sm font-bold text-black">
+                    <div role="status" aria-live="polite" className="mt-6 border-2 border-black bg-yellow-100 p-4 text-sm font-bold text-black dark:border-zinc-600 dark:bg-yellow-900/30 dark:text-yellow-200">
                       {dashboardMessage}
                     </div>
                   ) : null}
