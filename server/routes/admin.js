@@ -128,6 +128,7 @@ router.patch("/users/:id", async (req, res) => {
       id: userId,
       role,
       disabled: Boolean(disabled),
+      updatedBy: req.user.id,
     });
 
     await store.addAuditEntry({
@@ -307,6 +308,32 @@ router.post("/sessions/:id/revoke", async (req, res) => {
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: "Unable to revoke session." });
+  }
+});
+
+router.get("/database", async (req, res) => {
+  try {
+    const tables = await store.listDatabaseTables();
+    res.json({ tables });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: "Unable to load database tables." });
+  }
+});
+
+router.get("/database/tables/:tableName", async (req, res) => {
+  try {
+    const limit = Number(req.query.limit) || 25;
+    const preview = await store.previewDatabaseTable(req.params.tableName, limit);
+
+    if (!preview) {
+      return res.status(404).json({ message: "Database table not found." });
+    }
+
+    res.json(preview);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: "Unable to load database table preview." });
   }
 });
 
