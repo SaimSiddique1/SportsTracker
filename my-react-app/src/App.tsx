@@ -13,6 +13,8 @@ import SearchResultsPage from "./assets/pages/SearchResultsPage";
 import { searchPlayer } from "./sportsdbaAPI";
 import "./App.css";
 
+// ─── Helpers ────────────────────────────────────────────────────────────────
+
 const buildFallbackImage = (name: string) =>
   `data:image/svg+xml;utf8,${encodeURIComponent(`
     <svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256">
@@ -25,7 +27,10 @@ const buildFallbackImage = (name: string) =>
     </svg>
   `)}`;
 
-const featuredPlayerCatalog: Record<string, { name: string; team: string; goals: number; assists: number; imageUrl: string }> = {
+const featuredPlayerCatalog: Record<
+  string,
+  { name: string; team: string; goals: number; assists: number; imageUrl: string }
+> = {
   "lionel messi": { name: "Lionel Messi", team: "Inter Miami", goals: 18, assists: 11, imageUrl: buildFallbackImage("Lionel Messi") },
   "erling haaland": { name: "Erling Haaland", team: "Manchester City", goals: 21, assists: 4, imageUrl: buildFallbackImage("Erling Haaland") },
   "kylian mbappe": { name: "Kylian Mbappe", team: "Real Madrid", goals: 27, assists: 6, imageUrl: buildFallbackImage("Kylian Mbappe") },
@@ -36,15 +41,24 @@ const featuredPlayerCatalog: Record<string, { name: string; team: string; goals:
   "bukayo saka": { name: "Bukayo Saka", team: "Arsenal", goals: 16, assists: 11, imageUrl: buildFallbackImage("Bukayo Saka") },
 };
 
+// ─── Dark-mode initialisation (runs before first paint) ─────────────────────
+// Place an equivalent of this inline script in your index.html <head> to
+// prevent a flash-of-unstyled-content on hard refresh:
+//   <script>
+//     if (localStorage.getItem('theme') !== 'light') {
+//       document.documentElement.classList.add('dark');
+//     }
+//   </script>
+
 function useDarkMode(): [boolean, () => void] {
   const [isDark, setIsDark] = useState<boolean>(() => {
+    // Default to dark; only go light when the user has explicitly chosen light.
     return localStorage.getItem("theme") !== "light";
   });
 
   useEffect(() => {
     const root = document.documentElement;
-
-    if(isDark) {
+    if (isDark) {
       root.classList.add("dark");
       localStorage.setItem("theme", "dark");
     } else {
@@ -57,15 +71,72 @@ function useDarkMode(): [boolean, () => void] {
   return [isDark, toggle];
 }
 
-function ThemeToggle({isDark, onToggle}: {isDark: boolean; onToggle: () => void}) {
+// ─── Theme Toggle Button ─────────────────────────────────────────────────────
+
+function ThemeToggle({ isDark, onToggle }: { isDark: boolean; onToggle: () => void }) {
   return (
-    <button type="button" onClick={onToggle} aria-label={isDark ? "Switch to light mode" : "Switch to dark mode"} aria-pressed={isDark}
-    className="flex h-10 w-10 items-center justify-center border-2 border-black bg-white text-black transition-colors hover:bg-yellow-400 focus-visible:outline focus-visible:outline-offset-2 focus-visible:outline-yellow-400 dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-100 dark:hover:bg-zinc-700"
-    title={isDark ? "Switch to light mode" : "Switch to dark mode"}>
-      {isDark ? "🌞" : "🌚"}
+    <button
+      type="button"
+      onClick={onToggle}
+      aria-label={isDark ? "Switch to light mode" : "Switch to dark mode"}
+      aria-pressed={isDark}
+      className="
+        flex h-10 w-10 items-center justify-center
+        border-2 border-black bg-white text-black
+        transition-colors hover:bg-yellow-400
+        focus-visible:outline focus-visible:outline-offset-2 focus-visible:outline-yellow-400
+        dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-100 dark:hover:bg-zinc-700
+      "
+      title={isDark ? "Switch to light mode" : "Switch to dark mode"}
+    >
+      {/* Sun icon (shown in dark mode → click to go light) */}
+      {isDark ? (
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          width="18"
+          height="18"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2.5"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          aria-hidden="true"
+          focusable="false"
+        >
+          <circle cx="12" cy="12" r="4" />
+          <line x1="12" y1="2" x2="12" y2="4" />
+          <line x1="12" y1="20" x2="12" y2="22" />
+          <line x1="4.22" y1="4.22" x2="5.64" y2="5.64" />
+          <line x1="18.36" y1="18.36" x2="19.78" y2="19.78" />
+          <line x1="2" y1="12" x2="4" y2="12" />
+          <line x1="20" y1="12" x2="22" y2="12" />
+          <line x1="4.22" y1="19.78" x2="5.64" y2="18.36" />
+          <line x1="18.36" y1="5.64" x2="19.78" y2="4.22" />
+        </svg>
+      ) : (
+        /* Moon icon (shown in light mode → click to go dark) */
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          width="18"
+          height="18"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2.5"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          aria-hidden="true"
+          focusable="false"
+        >
+          <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
+        </svg>
+      )}
     </button>
   );
 }
+
+// ─── App Layout ──────────────────────────────────────────────────────────────
 
 function AppLayout() {
   const navigate = useNavigate();
@@ -74,22 +145,20 @@ function AppLayout() {
   const [maintenanceMode, setMaintenanceMode] = useState(false);
   const [maintenanceMessage, setMaintenanceMessage] = useState("");
   const [homeHeroHeadline, setHomeHeroHeadline] = useState("Welcome to Sports Tracker!");
-  const [homeHeroSubtext, setHomeHeroSubtext] = useState("Search players, explore league tables, and see recent match stats in one place.");
+  const [homeHeroSubtext, setHomeHeroSubtext] = useState(
+    "Search players, explore league tables, and see recent match stats in one place."
+  );
   const [featuredPlayers, setFeaturedPlayers] = useState([
     { name: "Lionel Messi", team: "Inter Miami", goals: 18, assists: 11, imageUrl: buildFallbackImage("Lionel Messi") },
     { name: "Erling Haaland", team: "Manchester City", goals: 21, assists: 4, imageUrl: buildFallbackImage("Erling Haaland") },
   ]);
   const [isMaintenanceLoading, setIsMaintenanceLoading] = useState(true);
 
+  // ── Sync user role from localStorage ──────────────────────────────────────
   useEffect(() => {
     const syncUserRole = () => {
       const rawUser = localStorage.getItem("user");
-
-      if (!rawUser) {
-        setIsAdmin(false);
-        return;
-      }
-
+      if (!rawUser) { setIsAdmin(false); return; }
       try {
         const parsedUser = JSON.parse(rawUser);
         setIsAdmin(parsedUser?.role === "admin");
@@ -97,17 +166,16 @@ function AppLayout() {
         setIsAdmin(false);
       }
     };
-
     syncUserRole();
     window.addEventListener("auth-changed", syncUserRole);
     window.addEventListener("storage", syncUserRole);
-
     return () => {
       window.removeEventListener("auth-changed", syncUserRole);
       window.removeEventListener("storage", syncUserRole);
     };
   }, []);
 
+  // ── Load public config & content ──────────────────────────────────────────
   useEffect(() => {
     let cancelled = false;
 
@@ -120,59 +188,61 @@ function AppLayout() {
         const configData = await configResponse.json();
         const contentData = await contentResponse.json();
 
-        if (!configResponse.ok || !contentResponse.ok || cancelled) {
-          return;
-        }
+        if (!configResponse.ok || !contentResponse.ok || cancelled) return;
 
         setMaintenanceMode(Boolean(configData.config?.maintenanceMode));
         setMaintenanceMessage(String(configData.config?.maintenanceMessage || ""));
-        setHomeHeroHeadline(String(contentData.contentModeration?.homeHeroHeadline || "Welcome to Sports Tracker!"));
-        setHomeHeroSubtext(String(contentData.contentModeration?.homeHeroSubtext || "Search players, explore league tables, and see recent match stats in one place."));
+        setHomeHeroHeadline(
+          String(contentData.contentModeration?.homeHeroHeadline || "Welcome to Sports Tracker!")
+        );
+        setHomeHeroSubtext(
+          String(
+            contentData.contentModeration?.homeHeroSubtext ||
+              "Search players, explore league tables, and see recent match stats in one place."
+          )
+        );
+
         const nextFeaturedPlayers = Array.isArray(contentData.contentModeration?.featuredPlayers)
           ? contentData.contentModeration.featuredPlayers
-            .map((playerName: string) => featuredPlayerCatalog[playerName.trim().toLowerCase()] || {
-              name: playerName,
-              team: "Featured Player",
-              goals: 0,
-              assists: 0,
-              imageUrl: buildFallbackImage(playerName),
-            })
-            .slice(0, 2)
+              .map((playerName: string) =>
+                featuredPlayerCatalog[playerName.trim().toLowerCase()] || {
+                  name: playerName,
+                  team: "Featured Player",
+                  goals: 0,
+                  assists: 0,
+                  imageUrl: buildFallbackImage(playerName),
+                }
+              )
+              .slice(0, 2)
           : [];
+
         if (nextFeaturedPlayers.length > 0) {
           const enrichedPlayers = await Promise.all(
-            nextFeaturedPlayers.map(async (player: { name: string; team: string; goals: number; assists: number; imageUrl: string }) => {
-              try {
-                const results = await searchPlayer(player.name);
-                const match = Array.isArray(results)
-                  ? results.find((result) => result?.strPlayer?.toLowerCase() === player.name.toLowerCase()) ?? results[0]
-                  : null;
-
-                return {
-                  ...player,
-                  team: match?.strTeam || player.team,
-                  imageUrl: match?.strThumb || player.imageUrl,
-                };
-              } catch {
-                return player;
+            nextFeaturedPlayers.map(
+              async (player: { name: string; team: string; goals: number; assists: number; imageUrl: string }) => {
+                try {
+                  const results = await searchPlayer(player.name);
+                  const match = Array.isArray(results)
+                    ? results.find((r) => r?.strPlayer?.toLowerCase() === player.name.toLowerCase()) ?? results[0]
+                    : null;
+                  return { ...player, team: match?.strTeam || player.team, imageUrl: match?.strThumb || player.imageUrl };
+                } catch {
+                  return player;
+                }
               }
-            })
+            )
           );
-
-          setFeaturedPlayers(enrichedPlayers);
+          if (!cancelled) setFeaturedPlayers(enrichedPlayers);
         }
       } catch (error) {
         console.error("Public config load error:", error);
       } finally {
-        if (!cancelled) {
-          setIsMaintenanceLoading(false);
-        }
+        if (!cancelled) setIsMaintenanceLoading(false);
       }
     };
 
     loadPublicConfig();
     window.addEventListener("auth-changed", loadPublicConfig);
-
     return () => {
       cancelled = true;
       window.removeEventListener("auth-changed", loadPublicConfig);
@@ -184,35 +254,63 @@ function AppLayout() {
   };
 
   const showMaintenanceScreen = maintenanceMode && !isAdmin;
-  const isDefaultWelcomeHeadline = homeHeroHeadline.trim().toLowerCase() === "welcome to sports tracker!" ||
+
+  const isDefaultWelcomeHeadline =
+    homeHeroHeadline.trim().toLowerCase() === "welcome to sports tracker!" ||
     homeHeroHeadline.trim().toLowerCase() === "welcome to sports tracker";
 
   const renderHeroHeadline = () => {
-    if (!isDefaultWelcomeHeadline) {
-      return homeHeroHeadline;
-    }
-
-    const trimmedHeadline = homeHeroHeadline.trim();
-    const hasExclamation = trimmedHeadline.endsWith("!");
-
+    if (!isDefaultWelcomeHeadline) return homeHeroHeadline;
+    const hasExclamation = homeHeroHeadline.trim().endsWith("!");
     return (
       <>
-        Welcome to Sports <span className="text-yellow-400">Tracker{hasExclamation ? "!" : ""}</span>
+        Welcome to Sports{" "}
+        <span className="text-yellow-400">Tracker{hasExclamation ? "!" : ""}</span>
       </>
     );
   };
 
   return (
+    /*
+      Root wrapper: dark class is toggled on <html> by useDarkMode,
+      so Tailwind's dark: variants work throughout the entire tree.
+    */
     <div className="min-h-screen bg-slate-50 text-slate-900 transition-colors duration-300 selection:bg-yellow-400 dark:bg-black dark:text-zinc-100">
-      <a href="#main-content" className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-100 focus:bg-yellow-400 focus:px-4 focus:py-2 focus:text-sm focus:font-black focus:text-black focus:outline focus:outline-black">Skip to Main Content</a>
+
+      {/* ── Skip navigation link (keyboard / screen-reader accessibility) ── */}
+      <a
+        href="#main-content"
+        className="
+          sr-only focus:not-sr-only
+          focus:fixed focus:left-4 focus:top-4 focus:z-100
+          focus:bg-yellow-400 focus:px-4 focus:py-2
+          focus:text-sm focus:font-black focus:text-black
+          focus:outline focus:outline-black
+        "
+      >
+        Skip to main content
+      </a>
+
+      {/* ── Primary navigation ─────────────────────────────────────────────── */}
       <header>
-        <nav aria-label="Primary navigation" className="sticky top-0 z-50 flex items-center justify-between gap-6 border-b-4 border-black bg-white/90 px-8 py-4 backdrop-blur-md dark:border-zinc-800 dark:bg-black/90">
+        <nav
+          aria-label="Primary navigation"
+          className="sticky top-0 z-50 flex items-center justify-between gap-6 border-b-4 border-black bg-white/90 px-8 py-4 backdrop-blur-md dark:border-zinc-800 dark:bg-black/90"
+        >
+          {/* Logo / home link */}
           <button
+            type="button"
             onClick={() => navigate("/")}
-            className="flex items-center gap-3"
-            aria-label="Go to home page"
+            className="
+              flex items-center gap-3
+              focus-visible:outline focus-visible:outline-offset-2 focus-visible:outline-yellow-400
+            "
+            aria-label="Sports Tracker — go to home page"
           >
-            <div className="flex h-12 w-12 items-center justify-center border-2 border-black bg-yellow-400 text-2xl font-black text-black" aria-hidden="true">
+            <div
+              className="flex h-12 w-12 items-center justify-center border-2 border-black bg-yellow-400 text-2xl font-black text-black"
+              aria-hidden="true"
+            >
               ST
             </div>
             <span className="text-3xl font-black tracking-tighter">
@@ -220,6 +318,7 @@ function AppLayout() {
             </span>
           </button>
 
+          {/* Inline search (large screens) */}
           <div className="hidden max-w-lg flex-1 lg:block" role="search" aria-label="Site search">
             <SearchBar
               onSearch={handleSearch}
@@ -228,21 +327,35 @@ function AppLayout() {
             />
           </div>
 
+          {/* Right-hand controls */}
           <div className="flex items-center gap-3">
-            <ThemeToggle isDark={isDark} onToggle={toggleDark}/>
+            <ThemeToggle isDark={isDark} onToggle={toggleDark} />
             <LoginRegister />
           </div>
         </nav>
       </header>
 
+      {/* ── Maintenance screen ─────────────────────────────────────────────── */}
       {showMaintenanceScreen ? (
         <main id="main-content" className="mx-auto flex max-w-5xl items-center px-8 py-6">
-          <section aria-labelledby="maintenance-heading" aria-live="polite" role="status" className="w-full overflow-hidden border-4 border-black bg-white shadow-[14px_14px_0_0_rgba(0,0,0,1)]">
+          {/*
+            role="status" + aria-live="polite" keeps screen readers informed
+            when the maintenance state changes without a full page reload.
+          */}
+          <section
+            aria-labelledby="maintenance-heading"
+            aria-live="polite"
+            role="status"
+            className="w-full overflow-hidden border-4 border-black bg-white shadow-[14px_14px_0_0_rgba(0,0,0,1)]"
+          >
             <div className="border-b-4 border-black bg-yellow-400 px-8 py-6 text-black">
               <p className="text-[11px] font-black uppercase tracking-[0.35em]">
                 SportsTracker Maintenance
               </p>
-              <h1 id="maintenance-heading" className="mt-3 text-5xl font-black tracking-tight">
+              <h1
+                id="maintenance-heading"
+                className="mt-3 text-5xl font-black tracking-tight"
+              >
                 Currently Under Maintenance
               </h1>
             </div>
@@ -258,9 +371,7 @@ function AppLayout() {
                     <div className="absolute inset-2.75 rotate-45 rounded-[0.85rem] border-[3px] border-black" />
                     <div className="absolute inset-0 flex -translate-y-1 flex-col items-center justify-center text-center text-black">
                       <div className="mb-1 text-[1.7rem] font-black leading-none">🛠</div>
-                      <div className="text-[1.7rem] font-black leading-none tracking-tight">
-                        UNDER
-                      </div>
+                      <div className="text-[1.7rem] font-black leading-none tracking-tight">UNDER</div>
                       <div className="mt-1 px-2 text-[0.72rem] font-black uppercase tracking-[0.01em] leading-none">
                         Maintenance
                       </div>
@@ -275,42 +386,73 @@ function AppLayout() {
                 <p className="mt-3 text-sm font-semibold leading-7 text-slate-200">
                   Browse, search, and live sports views will return after maintenance mode is turned off by an admin.
                 </p>
-                {isMaintenanceLoading ? (
-                  <p aria-live="polite" aria-busy="true" className="mt-6 text-xs font-black uppercase tracking-[0.2em] text-yellow-400">
-                    Checking live status...
+                {isMaintenanceLoading && (
+                  <p
+                    aria-live="polite"
+                    aria-busy="true"
+                    className="mt-6 text-xs font-black uppercase tracking-[0.2em] text-yellow-400"
+                  >
+                    Checking live status…
                   </p>
-                ) : null}
+                )}
               </div>
             </div>
           </section>
         </main>
       ) : (
+        /* ── Normal app routes ─────────────────────────────────────────────── */
         <Routes>
           <Route
             path="/"
             element={
               <>
+                {/* Match carousel is decorative / supplementary — no landmark needed */}
                 <MatchCarousel />
-                <main id="main-content" className="mx-auto grid max-w-7xl grid-cols-1 gap-12 p-8 lg:grid-cols-12">
-                  <section aria-label="Home page content" className="space-y-12 lg:col-span-8">
-                    <div className="relative overflow-hidden border border-slate-800 bg-zinc-900 p-12 text-white" aria-labelledby="hero-heading">
+
+                <main
+                  id="main-content"
+                  className="mx-auto grid max-w-7xl grid-cols-1 gap-12 p-8 lg:grid-cols-12"
+                >
+                  {/* ── Primary content column ──────────────────────────── */}
+                  <section
+                    aria-label="Home page content"
+                    className="space-y-12 lg:col-span-8"
+                  >
+                    {/* Hero banner */}
+                    <div
+                      className="relative overflow-hidden border border-slate-800 bg-zinc-900 p-12 text-white"
+                      aria-labelledby="hero-heading"
+                    >
                       <div className="relative z-10">
-                        <h1 id="hero-heading" className="mb-4 text-5xl font-black leading-tight tracking-tighter">
+                        <h1
+                          id="hero-heading"
+                          className="mb-4 text-5xl font-black leading-tight tracking-tighter"
+                        >
                           {renderHeroHeadline()}
                         </h1>
                         <p className="mb-8 max-w-sm text-[10px] font-bold tracking-widest text-slate-400">
                           {homeHeroSubtext}
                         </p>
-                      <div className="flex gap-4" role="group" aria-label="Quick navigation">
+                        <div className="flex gap-4" role="group" aria-label="Quick navigation">
                           <button
+                            type="button"
                             onClick={() => navigate("/search?q=Lionel%20Messi&mode=players")}
-                            className="bg-yellow-400 px-6 py-3 text-xs font-black tracking-widest text-black transition-colors hover:bg-white focus-visible:outline focus-visible:outline-offset-2 focus-visible:outline-yellow-400"
+                            className="
+                              bg-yellow-400 px-6 py-3 text-xs font-black tracking-widest text-black
+                              transition-colors hover:bg-white
+                              focus-visible:outline focus-visible:outline-offset-2 focus-visible:outline-yellow-400
+                            "
                           >
                             Search Players
                           </button>
                           <button
+                            type="button"
                             onClick={() => navigate("/search?q=English%20Premier%20League&mode=teams")}
-                            className="border border-white/20 bg-white/10 px-8 py-3 text-xs font-black tracking-widest transition-colors hover:bg-white/20 focus-visible:outline focus-visible:outline-offset-2 focus-visible:outline-yellow-400"
+                            className="
+                              border border-white/20 bg-white/10 px-8 py-3 text-xs font-black tracking-widest
+                              transition-colors hover:bg-white/20
+                              focus-visible:outline focus-visible:outline-offset-2 focus-visible:outline-yellow-400
+                            "
                           >
                             Search Teams
                           </button>
@@ -320,29 +462,43 @@ function AppLayout() {
 
                     <HomePage />
 
+                    {/* Trending Players */}
                     <section aria-labelledby="trending-heading">
-                      <h2 id="trending-heading" className="mb-6 text-2xl font-black tracking-tighter">Trending Players</h2>
-                      <ul role="list" className="grid grid-cols-1 gap-6 md:grid-cols-2">
+                      <h2
+                        id="trending-heading"
+                        className="mb-6 text-2xl font-black tracking-tighter"
+                      >
+                        Trending Players
+                      </h2>
+                      <ul
+                        role="list"
+                        className="grid grid-cols-1 gap-6 md:grid-cols-2"
+                      >
                         {featuredPlayers.map((player) => (
-                          <PlayerCard
-                            key={player.name}
-                            name={player.name}
-                            team={player.team}
-                            goals={player.goals}
-                            assists={player.assists}
-                            imageUrl={player.imageUrl}
-                            onCompare={() =>
-                              navigate(
-                                `/search?q=${encodeURIComponent(player.name)}&mode=players&compare=${encodeURIComponent(player.name)}`
-                              )
-                            }
-                          />
+                          <li key={player.name}>
+                            <PlayerCard
+                              name={player.name}
+                              team={player.team}
+                              goals={player.goals}
+                              assists={player.assists}
+                              imageUrl={player.imageUrl}
+                              onCompare={() =>
+                                navigate(
+                                  `/search?q=${encodeURIComponent(player.name)}&mode=players&compare=${encodeURIComponent(player.name)}`
+                                )
+                              }
+                            />
+                          </li>
                         ))}
                       </ul>
                     </section>
                   </section>
 
-                  <aside aria-label="League table and live stats" className="lg:col-span-4">
+                  {/* ── Sidebar ─────────────────────────────────────────── */}
+                  <aside
+                    aria-label="League table and live stats"
+                    className="lg:col-span-4"
+                  >
                     <div className="border border-slate-200 bg-white p-6 dark:border-zinc-800 dark:bg-zinc-900">
                       <h2 className="mb-6 inline-block border-b-4 border-yellow-400 text-xl font-black tracking-tighter">
                         League Table
@@ -361,7 +517,7 @@ function AppLayout() {
               </>
             }
           />
-          
+
           <Route path="/search" element={<SearchResultsPage />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
@@ -369,6 +525,8 @@ function AppLayout() {
     </div>
   );
 }
+
+// ─── Root ────────────────────────────────────────────────────────────────────
 
 function App() {
   return (
