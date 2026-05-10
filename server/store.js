@@ -32,6 +32,13 @@ const defaultAppOperations = {
 
 const defaultAuditDetails = {};
 
+const defaultAdminPermissions = {
+  manageUsers: true,
+  manageContent: true,
+  manageSystem: true,
+  viewDatabase: true,
+};
+
 const maskArrayFromCsv = (value) =>
   String(value || "")
     .split(",")
@@ -44,6 +51,7 @@ const createMemoryStore = () => ({
   nextFavoriteId: 1,
   users: [],
   sessions: [],
+  passwordResetTokens: [],
   audits: [],
   favoritePlayers: [],
   favoriteTeams: [],
@@ -101,6 +109,22 @@ const createPgStore = () => {
     );
   };
 
+  const quoteIdentifier = (identifier) => `"${String(identifier).replace(/"/g, '""')}"`;
+
+  const normalizeUserRow = (row) => {
+    if (!row) {
+      return null;
+    }
+
+    const isAdmin = Boolean(row.is_admin ?? row.isAdmin ?? row.role === "admin");
+    return {
+      ...row,
+      role: isAdmin ? "admin" : "user",
+      isAdmin,
+      permissions: row.permissions || (isAdmin ? defaultAdminPermissions : {}),
+    };
+  };
+
   return {
     async init() {
       await pool.query(`
@@ -119,6 +143,32 @@ const createPgStore = () => {
         ALTER TABLE users
         ADD COLUMN IF NOT EXISTS disabled BOOLEAN NOT NULL DEFAULT FALSE
       `);
+
+      await pool.query(`
+        ALTER TABLE users
+        ADD COLUMN IF NOT EXISTS role TEXT NOT NULL DEFAULT 'user'
+      `);
+
+      await pool.query(`
+        CREATE TABLE IF NOT EXISTS user_admin_permissions (
+          user_id INTEGER PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+          is_admin BOOLEAN NOT NULL DEFAULT FALSE,
+          permissions JSONB NOT NULL DEFAULT '{}'::jsonb,
+          updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+          updated_by INTEGER NULL REFERENCES users(id)
+        )
+      `);
+
+      await pool.query(
+        `INSERT INTO user_admin_permissions (user_id, is_admin, permissions)
+         SELECT
+           id,
+           role = 'admin',
+           CASE WHEN role = 'admin' THEN $1::jsonb ELSE '{}'::jsonb END
+         FROM users
+         ON CONFLICT (user_id) DO NOTHING`,
+        [JSON.stringify(defaultAdminPermissions)]
+      );
 
       await pool.query(`
         CREATE TABLE IF NOT EXISTS system_config (
@@ -196,6 +246,12 @@ const createPgStore = () => {
           position TEXT NULL,
           image_url TEXT NULL,
           raw_payload JSONB NOT NULL,
+        CREATE TABLE IF NOT EXISTS password_reset_tokens (
+          id SERIAL PRIMARY KEY,
+          user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          token_hash TEXT UNIQUE NOT NULL,
+          expires_at TIMESTAMPTZ NOT NULL,
+          used_at TIMESTAMPTZ NULL,
           created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
         )
       `);
@@ -276,29 +332,70 @@ const createPgStore = () => {
 
     async countAdmins() {
       const result = await pool.query(
-        "SELECT COUNT(*)::int AS count FROM users WHERE role = 'admin'"
+        `SELECT COUNT(*)::int AS count
+         FROM users
+         LEFT JOIN user_admin_permissions ON user_admin_permissions.user_id = users.id
+         WHERE COALESCE(user_admin_permissions.is_admin, users.role = 'admin') = TRUE`
       );
       return result.rows[0].count;
     },
 
     async findUserByEmail(email) {
-      const result = await pool.query("SELECT * FROM users WHERE email = $1", [email]);
-      return result.rows[0] || null;
+      const result = await pool.query(
+        `SELECT
+          users.*,
+          COALESCE(user_admin_permissions.is_admin, users.role = 'admin') AS is_admin,
+          COALESCE(user_admin_permissions.permissions, '{}'::jsonb) AS permissions
+         FROM users
+         LEFT JOIN user_admin_permissions ON user_admin_permissions.user_id = users.id
+         WHERE users.email = $1`,
+        [email]
+      );
+      return normalizeUserRow(result.rows[0]);
     },
 
     async findUserById(id) {
-      const result = await pool.query("SELECT * FROM users WHERE id = $1", [id]);
-      return result.rows[0] || null;
+      const result = await pool.query(
+        `SELECT
+          users.*,
+          COALESCE(user_admin_permissions.is_admin, users.role = 'admin') AS is_admin,
+          COALESCE(user_admin_permissions.permissions, '{}'::jsonb) AS permissions
+         FROM users
+         LEFT JOIN user_admin_permissions ON user_admin_permissions.user_id = users.id
+         WHERE users.id = $1`,
+        [id]
+      );
+      return normalizeUserRow(result.rows[0]);
     },
 
     async createUser({ username, email, passwordHash, role }) {
-      const result = await pool.query(
+      const client = await pool.connect();
+      try {
+        await client.query("BEGIN");
+        const result = await client.query(
         `INSERT INTO users (username, email, password_hash, role)
          VALUES ($1, $2, $3, $4)
          RETURNING id, username, email, role, disabled`,
-        [username, email, passwordHash, role]
-      );
-      return result.rows[0];
+          [username, email, passwordHash, role]
+        );
+        const user = result.rows[0];
+        await client.query(
+          `INSERT INTO user_admin_permissions (user_id, is_admin, permissions)
+           VALUES ($1, $2, $3::jsonb)`,
+          [
+            user.id,
+            role === "admin",
+            JSON.stringify(role === "admin" ? defaultAdminPermissions : {}),
+          ]
+        );
+        await client.query("COMMIT");
+        return normalizeUserRow(user);
+      } catch (error) {
+        await client.query("ROLLBACK");
+        throw error;
+      } finally {
+        client.release();
+      }
     },
 
     async updateUserProfile({ id, username, passwordHash }) {
@@ -309,30 +406,129 @@ const createPgStore = () => {
          RETURNING id, username, email, role, disabled`,
         [username, passwordHash, id]
       );
-      return result.rows[0];
+      return normalizeUserRow(result.rows[0]);
+    },
+
+    async updateUserPassword({ id, passwordHash }) {
+      const result = await pool.query(
+        `UPDATE users
+         SET password_hash = $1
+         WHERE id = $2
+         RETURNING id, username, email, role, disabled`,
+        [passwordHash, id]
+      );
+      return result.rows[0] || null;
+    },
+
+    async createPasswordResetToken({ userId, tokenHash, expiresAt }) {
+      await pool.query(
+        `UPDATE password_reset_tokens
+         SET used_at = NOW()
+         WHERE user_id = $1 AND used_at IS NULL`,
+        [userId]
+      );
+
+      await pool.query(
+        `INSERT INTO password_reset_tokens (user_id, token_hash, expires_at)
+         VALUES ($1, $2, $3)`,
+        [userId, tokenHash, expiresAt]
+      );
+    },
+
+    async findPasswordResetToken(tokenHash) {
+      const result = await pool.query(
+        `SELECT
+          password_reset_tokens.id,
+          password_reset_tokens.user_id AS "userId",
+          password_reset_tokens.expires_at AS "expiresAt",
+          password_reset_tokens.used_at AS "usedAt",
+          users.email,
+          users.disabled
+         FROM password_reset_tokens
+         JOIN users ON users.id = password_reset_tokens.user_id
+         WHERE password_reset_tokens.token_hash = $1`,
+        [tokenHash]
+      );
+      return result.rows[0] || null;
+    },
+
+    async markPasswordResetTokenUsed(tokenHash) {
+      await pool.query(
+        `UPDATE password_reset_tokens
+         SET used_at = NOW()
+         WHERE token_hash = $1`,
+        [tokenHash]
+      );
     },
 
     async listUsers(search = "") {
       const normalizedSearch = `%${search.toLowerCase()}%`;
       const result = await pool.query(
-        `SELECT id, username, email, role, disabled, created_at AS "createdAt"
+        `SELECT
+           users.id,
+           users.username,
+           users.email,
+           CASE
+             WHEN COALESCE(user_admin_permissions.is_admin, users.role = 'admin') THEN 'admin'
+             ELSE 'user'
+           END AS role,
+           COALESCE(user_admin_permissions.is_admin, users.role = 'admin') AS "isAdmin",
+           COALESCE(user_admin_permissions.permissions, '{}'::jsonb) AS permissions,
+           users.disabled,
+           users.created_at AS "createdAt"
          FROM users
-         WHERE LOWER(username) LIKE $1 OR LOWER(email) LIKE $1
-         ORDER BY id ASC`,
+         LEFT JOIN user_admin_permissions ON user_admin_permissions.user_id = users.id
+         WHERE LOWER(users.username) LIKE $1 OR LOWER(users.email) LIKE $1
+         ORDER BY users.id ASC`,
         [normalizedSearch]
       );
-      return result.rows;
+      return result.rows.map(normalizeUserRow);
     },
 
-    async updateUserAccess({ id, role, disabled }) {
-      const result = await pool.query(
-        `UPDATE users
-         SET role = $1, disabled = $2
-         WHERE id = $3
-         RETURNING id, username, email, role, disabled, created_at AS "createdAt"`,
-        [role, disabled, id]
-      );
-      return result.rows[0] || null;
+    async updateUserAccess({ id, role, disabled, updatedBy = null }) {
+      const client = await pool.connect();
+      try {
+        await client.query("BEGIN");
+        const result = await client.query(
+          `UPDATE users
+           SET role = $1, disabled = $2
+           WHERE id = $3
+           RETURNING id, username, email, role, disabled, created_at AS "createdAt"`,
+          [role, disabled, id]
+        );
+        const user = result.rows[0] || null;
+
+        if (user) {
+          await client.query(
+            `INSERT INTO user_admin_permissions (
+              user_id,
+              is_admin,
+              permissions,
+              updated_by
+            )
+            VALUES ($1, $2, $3::jsonb, $4)
+            ON CONFLICT (user_id) DO UPDATE
+            SET is_admin = EXCLUDED.is_admin,
+                permissions = EXCLUDED.permissions,
+                updated_at = NOW(),
+                updated_by = EXCLUDED.updated_by`,
+            [
+              id,
+              role === "admin",
+              JSON.stringify(role === "admin" ? defaultAdminPermissions : {}),
+              updatedBy,
+            ]
+          );
+        }
+
+        await client.query("COMMIT");
+        return normalizeUserRow(user);
+      } catch (error) {
+        await client.query("ROLLBACK");
+        throw error;
+      } finally {
+        client.release();
+      }
     },
 
     async deleteUser(id) {
@@ -347,7 +543,7 @@ const createPgStore = () => {
          RETURNING id, username, email, role, disabled, created_at AS "createdAt"`,
         [id]
       );
-      return result.rows[0] || null;
+      return normalizeUserRow(result.rows[0]);
     },
 
     async getSystemConfig() {
@@ -677,6 +873,60 @@ const createPgStore = () => {
       );
       return result.rows;
     },
+
+    async listDatabaseTables() {
+      const result = await pool.query(
+        `SELECT
+          table_schema AS "schema",
+          table_name AS "name",
+          table_type AS "type"
+         FROM information_schema.tables
+         WHERE table_schema = 'public'
+         ORDER BY table_name ASC`
+      );
+
+      return Promise.all(result.rows.map(async (table) => {
+        const countResult = await pool.query(
+          `SELECT COUNT(*)::int AS count
+           FROM ${quoteIdentifier(table.schema)}.${quoteIdentifier(table.name)}`
+        );
+        return {
+          ...table,
+          rowCount: countResult.rows[0].count,
+        };
+      }));
+    },
+
+    async previewDatabaseTable(tableName, limit = 25) {
+      const tables = await this.listDatabaseTables();
+      const table = tables.find((entry) => entry.name === tableName);
+
+      if (!table) {
+        return null;
+      }
+
+      const columnResult = await pool.query(
+        `SELECT column_name AS name, data_type AS "dataType"
+         FROM information_schema.columns
+         WHERE table_schema = 'public' AND table_name = $1
+         ORDER BY ordinal_position ASC`,
+        [tableName]
+      );
+
+      const safeLimit = Math.min(Math.max(Number(limit) || 25, 1), 100);
+      const rowResult = await pool.query(
+        `SELECT *
+         FROM ${quoteIdentifier(table.schema)}.${quoteIdentifier(table.name)}
+         LIMIT $1`,
+        [safeLimit]
+      );
+
+      return {
+        table,
+        columns: columnResult.rows,
+        rows: rowResult.rows,
+      };
+    },
   };
 };
 
@@ -698,6 +948,11 @@ const createDemoFileStore = () => ({
 
     if (!Array.isArray(data.sessions)) {
       data.sessions = [];
+      changed = true;
+    }
+
+    if (!Array.isArray(data.passwordResetTokens)) {
+      data.passwordResetTokens = [];
       changed = true;
     }
 
@@ -726,10 +981,18 @@ const createDemoFileStore = () => ({
       changed = true;
     }
 
-    data.users = (data.users || []).map((user) => ({
-      ...user,
-      disabled: Boolean(user.disabled),
-    }));
+    data.users = (data.users || []).map((user) => {
+      if (typeof user.isAdmin !== "boolean" || !user.permissions) {
+        changed = true;
+      }
+
+      return {
+        ...user,
+        isAdmin: user.role === "admin",
+        permissions: user.role === "admin" ? defaultAdminPermissions : {},
+        disabled: Boolean(user.disabled),
+      };
+    });
 
     if (!data.systemConfig) {
       data.systemConfig = {
@@ -759,7 +1022,7 @@ const createDemoFileStore = () => ({
 
   async findUserByEmail(email) {
     const data = await readDemoStore();
-    return data.users.find((user) => user.email === email) || null;
+    return data.users.find((user) => user.email.toLowerCase() === email.toLowerCase()) || null;
   },
 
   async findUserById(id) {
@@ -775,6 +1038,8 @@ const createDemoFileStore = () => ({
       email,
       password_hash: passwordHash,
       role,
+      isAdmin: role === "admin",
+      permissions: role === "admin" ? defaultAdminPermissions : {},
       disabled: false,
       created_at: new Date().toISOString(),
     };
@@ -788,6 +1053,8 @@ const createDemoFileStore = () => ({
       username: user.username,
       email: user.email,
       role: user.role,
+      isAdmin: user.isAdmin,
+      permissions: user.permissions,
       disabled: user.disabled,
     };
   },
@@ -809,8 +1076,83 @@ const createDemoFileStore = () => ({
       username: user.username,
       email: user.email,
       role: user.role,
+      isAdmin: user.role === "admin",
+      permissions: user.role === "admin" ? defaultAdminPermissions : {},
       disabled: user.disabled,
     };
+  },
+
+  async updateUserPassword({ id, passwordHash }) {
+    const data = await readDemoStore();
+    const user = data.users.find((entry) => entry.id === id);
+
+    if (!user) {
+      return null;
+    }
+
+    user.password_hash = passwordHash;
+    await writeDemoStore(data);
+
+    return {
+      id: user.id,
+      username: user.username,
+      email: user.email,
+      role: user.role,
+      disabled: user.disabled,
+    };
+  },
+
+  async createPasswordResetToken({ userId, tokenHash, expiresAt }) {
+    const data = await readDemoStore();
+    data.passwordResetTokens = (data.passwordResetTokens || []).map((entry) =>
+      entry.userId === userId && !entry.usedAt
+        ? { ...entry, usedAt: new Date().toISOString() }
+        : entry
+    );
+    data.passwordResetTokens.push({
+      id: crypto.randomUUID(),
+      userId,
+      tokenHash,
+      expiresAt,
+      usedAt: null,
+      createdAt: new Date().toISOString(),
+    });
+    await writeDemoStore(data);
+  },
+
+  async findPasswordResetToken(tokenHash) {
+    const data = await readDemoStore();
+    const token = (data.passwordResetTokens || []).find(
+      (entry) => entry.tokenHash === tokenHash
+    );
+
+    if (!token) {
+      return null;
+    }
+
+    const user = data.users.find((entry) => entry.id === token.userId);
+
+    if (!user) {
+      return null;
+    }
+
+    return {
+      ...token,
+      email: user.email,
+      disabled: Boolean(user.disabled),
+    };
+  },
+
+  async markPasswordResetTokenUsed(tokenHash) {
+    const data = await readDemoStore();
+    const token = (data.passwordResetTokens || []).find(
+      (entry) => entry.tokenHash === tokenHash
+    );
+
+    if (token) {
+      token.usedAt = new Date().toISOString();
+      await writeDemoStore(data);
+    }
   },
 
   async listUsers(search = "") {
@@ -827,6 +1169,8 @@ const createDemoFileStore = () => ({
         username: user.username,
         email: user.email,
         role: user.role,
+        isAdmin: user.role === "admin",
+        permissions: user.role === "admin" ? defaultAdminPermissions : {},
         disabled: Boolean(user.disabled),
         createdAt: user.created_at,
       }));
@@ -841,6 +1185,8 @@ const createDemoFileStore = () => ({
     }
 
     user.role = role;
+    user.isAdmin = role === "admin";
+    user.permissions = user.isAdmin ? defaultAdminPermissions : {};
     user.disabled = disabled;
     await writeDemoStore(data);
 
@@ -849,6 +1195,8 @@ const createDemoFileStore = () => ({
       username: user.username,
       email: user.email,
       role: user.role,
+      isAdmin: user.isAdmin,
+      permissions: user.permissions,
       disabled: user.disabled,
       createdAt: user.created_at,
     };
@@ -871,6 +1219,8 @@ const createDemoFileStore = () => ({
       username: deletedUser.username,
       email: deletedUser.email,
       role: deletedUser.role,
+      isAdmin: deletedUser.role === "admin",
+      permissions: deletedUser.permissions || {},
       disabled: deletedUser.disabled,
       createdAt: deletedUser.created_at,
     };
@@ -1117,6 +1467,61 @@ const createDemoFileStore = () => ({
     const data = await readDemoStore();
     return data.audits.slice(0, limit);
   },
+
+  async listDatabaseTables() {
+    const data = await readDemoStore();
+    const tables = [
+      ["users", data.users],
+      ["sessions", data.sessions],
+      ["audits", data.audits],
+      ["systemConfig", [data.systemConfig]],
+      ["contentModeration", [data.contentModeration]],
+      ["appOperations", [data.appOperations]],
+    ];
+
+    return tables.map(([name, rows]) => ({
+      schema: "demo",
+      name,
+      type: "DEMO_DATA",
+      rowCount: Array.isArray(rows) ? rows.length : 0,
+    }));
+  },
+
+  async previewDatabaseTable(tableName, limit = 25) {
+    const data = await readDemoStore();
+    const sources = {
+      users: data.users,
+      sessions: data.sessions,
+      audits: data.audits,
+      systemConfig: [data.systemConfig],
+      contentModeration: [data.contentModeration],
+      appOperations: [data.appOperations],
+    };
+    const rows = sources[tableName];
+
+    if (!rows) {
+      return null;
+    }
+
+    const sampleRows = rows.slice(0, Math.min(Math.max(Number(limit) || 25, 1), 100));
+    const columnNames = Array.from(
+      sampleRows.reduce((columns, row) => {
+        Object.keys(row || {}).forEach((key) => columns.add(key));
+        return columns;
+      }, new Set())
+    );
+
+    return {
+      table: {
+        schema: "demo",
+        name: tableName,
+        type: "DEMO_DATA",
+        rowCount: rows.length,
+      },
+      columns: columnNames.map((name) => ({ name, dataType: "json" })),
+      rows: sampleRows,
+    };
+  },
 });
 
 const store = process.env.DATABASE_URL ? createPgStore() : createDemoFileStore();
@@ -1126,5 +1531,6 @@ module.exports = {
   defaultSystemConfig,
   defaultContentModeration,
   defaultAppOperations,
+  defaultAdminPermissions,
   maskArrayFromCsv,
 };
