@@ -50,6 +50,7 @@ const createMemoryStore = () => ({
   nextAuditId: 1,
   users: [],
   sessions: [],
+  passwordResetTokens: [],
   audits: [],
   systemConfig: {
     ...defaultSystemConfig,
@@ -230,6 +231,17 @@ const createPgStore = () => {
         )
       `);
 
+      await pool.query(`
+        CREATE TABLE IF NOT EXISTS password_reset_tokens (
+          id SERIAL PRIMARY KEY,
+          user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          token_hash TEXT UNIQUE NOT NULL,
+          expires_at TIMESTAMPTZ NOT NULL,
+          used_at TIMESTAMPTZ NULL,
+          created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+        )
+      `);
+
       await setAdminState("contentModeration", defaultContentModeration);
       await setAdminState("appOperations", defaultAppOperations);
     },
@@ -311,6 +323,58 @@ const createPgStore = () => {
         [username, passwordHash, id]
       );
       return normalizeUserRow(result.rows[0]);
+    },
+
+    async updateUserPassword({ id, passwordHash }) {
+      const result = await pool.query(
+        `UPDATE users
+         SET password_hash = $1
+         WHERE id = $2
+         RETURNING id, username, email, role, disabled`,
+        [passwordHash, id]
+      );
+      return result.rows[0] || null;
+    },
+
+    async createPasswordResetToken({ userId, tokenHash, expiresAt }) {
+      await pool.query(
+        `UPDATE password_reset_tokens
+         SET used_at = NOW()
+         WHERE user_id = $1 AND used_at IS NULL`,
+        [userId]
+      );
+
+      await pool.query(
+        `INSERT INTO password_reset_tokens (user_id, token_hash, expires_at)
+         VALUES ($1, $2, $3)`,
+        [userId, tokenHash, expiresAt]
+      );
+    },
+
+    async findPasswordResetToken(tokenHash) {
+      const result = await pool.query(
+        `SELECT
+          password_reset_tokens.id,
+          password_reset_tokens.user_id AS "userId",
+          password_reset_tokens.expires_at AS "expiresAt",
+          password_reset_tokens.used_at AS "usedAt",
+          users.email,
+          users.disabled
+         FROM password_reset_tokens
+         JOIN users ON users.id = password_reset_tokens.user_id
+         WHERE password_reset_tokens.token_hash = $1`,
+        [tokenHash]
+      );
+      return result.rows[0] || null;
+    },
+
+    async markPasswordResetTokenUsed(tokenHash) {
+      await pool.query(
+        `UPDATE password_reset_tokens
+         SET used_at = NOW()
+         WHERE token_hash = $1`,
+        [tokenHash]
+      );
     },
 
     async listUsers(search = "") {
@@ -641,6 +705,11 @@ const createDemoFileStore = () => ({
       changed = true;
     }
 
+    if (!Array.isArray(data.passwordResetTokens)) {
+      data.passwordResetTokens = [];
+      changed = true;
+    }
+
     if (!Array.isArray(data.audits)) {
       data.audits = [];
       changed = true;
@@ -697,7 +766,7 @@ const createDemoFileStore = () => ({
 
   async findUserByEmail(email) {
     const data = await readDemoStore();
-    return data.users.find((user) => user.email === email) || null;
+    return data.users.find((user) => user.email.toLowerCase() === email.toLowerCase()) || null;
   },
 
   async findUserById(id) {
@@ -755,6 +824,79 @@ const createDemoFileStore = () => ({
       permissions: user.role === "admin" ? defaultAdminPermissions : {},
       disabled: user.disabled,
     };
+  },
+
+  async updateUserPassword({ id, passwordHash }) {
+    const data = await readDemoStore();
+    const user = data.users.find((entry) => entry.id === id);
+
+    if (!user) {
+      return null;
+    }
+
+    user.password_hash = passwordHash;
+    await writeDemoStore(data);
+
+    return {
+      id: user.id,
+      username: user.username,
+      email: user.email,
+      role: user.role,
+      disabled: user.disabled,
+    };
+  },
+
+  async createPasswordResetToken({ userId, tokenHash, expiresAt }) {
+    const data = await readDemoStore();
+    data.passwordResetTokens = (data.passwordResetTokens || []).map((entry) =>
+      entry.userId === userId && !entry.usedAt
+        ? { ...entry, usedAt: new Date().toISOString() }
+        : entry
+    );
+    data.passwordResetTokens.push({
+      id: crypto.randomUUID(),
+      userId,
+      tokenHash,
+      expiresAt,
+      usedAt: null,
+      createdAt: new Date().toISOString(),
+    });
+    await writeDemoStore(data);
+  },
+
+  async findPasswordResetToken(tokenHash) {
+    const data = await readDemoStore();
+    const token = (data.passwordResetTokens || []).find(
+      (entry) => entry.tokenHash === tokenHash
+    );
+
+    if (!token) {
+      return null;
+    }
+
+    const user = data.users.find((entry) => entry.id === token.userId);
+
+    if (!user) {
+      return null;
+    }
+
+    return {
+      ...token,
+      email: user.email,
+      disabled: Boolean(user.disabled),
+    };
+  },
+
+  async markPasswordResetTokenUsed(tokenHash) {
+    const data = await readDemoStore();
+    const token = (data.passwordResetTokens || []).find(
+      (entry) => entry.tokenHash === tokenHash
+    );
+
+    if (token) {
+      token.usedAt = new Date().toISOString();
+      await writeDemoStore(data);
+    }
   },
 
   async listUsers(search = "") {
