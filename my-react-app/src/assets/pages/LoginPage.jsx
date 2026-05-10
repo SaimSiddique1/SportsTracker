@@ -1,6 +1,8 @@
 import { useState } from "react";
 
-function LoginPage({ apiBaseUrl = "http://localhost:5000" }) {
+const DEFAULT_API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:5001";
+
+function LoginPage({ apiBaseUrl = DEFAULT_API_BASE_URL }) {
   const [formData, setFormData] = useState({
     email: "",
     password: "",
@@ -22,6 +24,9 @@ function LoginPage({ apiBaseUrl = "http://localhost:5000" }) {
     setMessage("");
 
     try {
+      localStorage.removeItem("token");
+      localStorage.removeItem("user");
+
       const response = await fetch(`${apiBaseUrl}/api/auth/login`, {
         method: "POST",
         headers: {
@@ -36,12 +41,19 @@ function LoginPage({ apiBaseUrl = "http://localhost:5000" }) {
         localStorage.setItem("token", data.token);
         localStorage.setItem("user", JSON.stringify(data.user));
         window.dispatchEvent(new Event("auth-changed"));
+      } else {
+        localStorage.removeItem("token");
+        localStorage.removeItem("user");
+        window.dispatchEvent(new Event("auth-changed"));
       }
 
       setMessage(data.message || "Login complete.");
     } catch (error) {
       console.error("Login error:", error);
-      setMessage("Could not connect to server. Make sure the backend is running on port 5001.");
+      localStorage.removeItem("token");
+      localStorage.removeItem("user");
+      window.dispatchEvent(new Event("auth-changed"));
+      setMessage("Could not connect to server. Check VITE_API_BASE_URL and make sure the backend is running.");
     } finally {
       setIsLoading(false);
     }
