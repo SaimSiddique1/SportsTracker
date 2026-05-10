@@ -15,25 +15,18 @@ interface Fixture {
 function MatchCarousel() {
     const [matches, setMatches] = useState<Fixture[]>([]);
     const [loading, setLoading] = useState(true);
-    const [error, setError] = useState<string | null>(null);
-
     useEffect(() => {
         const fetchSchedules = async() => {
-            try {
-                setLoading(true);
-                const data = await getRecentLeagueMatches('4328');
-                if(data) setMatches(data);
-            } catch(err: unknown) {
-                setError(err instanceof Error ? err.message : "Failed to load data.");
-            } finally {
-                setLoading(false);
-            }
+            setLoading(true);
+            const data = await getRecentLeagueMatches('4328');
+            setMatches(Array.isArray(data) ? data : []);
+            setLoading(false);
         }
         fetchSchedules();
     }, [])
 
     if(loading) return <div className="p-10 text-center animate-pulse text-slate-500">Loading Schedule...</div>
-    if(error) return <div className="p-10 text-center text-red-500">Error: {error}</div>
+    if(!matches.length) return <div className="p-10 text-center text-slate-500">No recent match data is available right now.</div>
 
     return (
         <div className="flex gap-4 p-6 overflow-x-auto bg-white dark:bg-zinc-950/50 border-b border-slate-200 dark:border-zinc-900 select-none">

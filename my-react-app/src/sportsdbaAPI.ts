@@ -125,6 +125,11 @@ export const getPlayerStats = async (playerId: string) => {
 
 // Get recent matches in a league
 export const getRecentLeagueMatches = async (leagueId: string) => {
-  const response = await api.get(`/eventspastleague.php?id=${leagueId}`);
-  return response.data.events;
-}
+  try {
+    const response = await api.get(`/eventspastleague.php?id=${leagueId}`);
+    return safeArray(response.data.events);
+  } catch (err: any) {
+    console.error("getRecentLeagueMatches failed:", err.message);
+    return [];
+  }
+};
