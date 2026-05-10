@@ -54,6 +54,25 @@ type FavoriteTeamRecord = {
 };
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:5001";
+const AUTH_ERROR_MESSAGES = new Set([
+  "Invalid or expired token.",
+  "Authentication token is required.",
+  "User session is no longer valid.",
+  "This session has been revoked.",
+]);
+
+const clearStoredAuth = () => {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  localStorage.removeItem("token");
+  localStorage.removeItem("user");
+  window.dispatchEvent(new Event("auth-changed"));
+};
+
+const isAuthFailure = (status: number, message?: string) =>
+  status === 401 || status === 403 || AUTH_ERROR_MESSAGES.has(message || "");
 
 const EMPTY_VALUE = "Not listed";
 
@@ -309,8 +328,6 @@ function SearchResultsPage() {
   const [favoriteMessage, setFavoriteMessage] = useState("");
   const [favoriteLoadingId, setFavoriteLoadingId] = useState("");
 
-  const token = typeof window !== "undefined" ? localStorage.getItem("token") : null;
-
   const matchingCompetitions = useMemo(() => {
     if (!query) {
       return [];
@@ -443,7 +460,21 @@ function SearchResultsPage() {
         const teamData = await teamResponse.json();
 
         if (!playerResponse.ok || !teamResponse.ok) {
-          setFavoriteMessage(playerData.message || teamData.message || "Could not load favorites.");
+          const message = playerData.message || teamData.message || "Could not load favorites.";
+          if (
+            isAuthFailure(
+              !playerResponse.ok ? playerResponse.status : teamResponse.status,
+              playerData.message || teamData.message
+            )
+          ) {
+            clearStoredAuth();
+            setFavoritePlayerIds([]);
+            setFavoriteTeamIds([]);
+            setFavoriteMessage("Your session expired. Log in again to save favorites.");
+            return;
+          }
+
+          setFavoriteMessage(message);
           return;
         }
 
@@ -494,6 +525,7 @@ function SearchResultsPage() {
   };
 
   const toggleFavoritePlayer = async (player: PlayerResult) => {
+    const token = typeof window !== "undefined" ? localStorage.getItem("token") : null;
     if (!token) {
       setFavoriteMessage("Log in to save favorite players.");
       return;
@@ -525,6 +557,14 @@ function SearchResultsPage() {
       const data = await response.json();
 
       if (!response.ok) {
+        if (isAuthFailure(response.status, data.message)) {
+          clearStoredAuth();
+          setFavoritePlayerIds([]);
+          setFavoriteTeamIds([]);
+          setFavoriteMessage("Your session expired. Log in again to save favorites.");
+          return;
+        }
+
         setFavoriteMessage(data.message || "Could not update favorite player.");
         return;
       }
@@ -544,6 +584,7 @@ function SearchResultsPage() {
   };
 
   const toggleFavoriteTeam = async (team: TeamResult) => {
+    const token = typeof window !== "undefined" ? localStorage.getItem("token") : null;
     if (!token) {
       setFavoriteMessage("Log in to save favorite teams.");
       return;
@@ -575,6 +616,14 @@ function SearchResultsPage() {
       const data = await response.json();
 
       if (!response.ok) {
+        if (isAuthFailure(response.status, data.message)) {
+          clearStoredAuth();
+          setFavoritePlayerIds([]);
+          setFavoriteTeamIds([]);
+          setFavoriteMessage("Your session expired. Log in again to save favorites.");
+          return;
+        }
+
         setFavoriteMessage(data.message || "Could not update favorite team.");
         return;
       }

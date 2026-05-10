@@ -4,6 +4,21 @@ import LoginPage from "../assets/pages/LoginPage.jsx";
 import RegisterPage from "../assets/pages/RegisterPage.jsx";
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:5001";
+const AUTH_ERROR_MESSAGES = new Set([
+  "Invalid or expired token.",
+  "Authentication token is required.",
+  "User session is no longer valid.",
+  "This session has been revoked.",
+]);
+
+const clearStoredAuth = () => {
+  localStorage.removeItem("token");
+  localStorage.removeItem("user");
+  window.dispatchEvent(new Event("auth-changed"));
+};
+
+const isAuthFailure = (status: number, message?: string) =>
+  status === 401 || status === 403 || AUTH_ERROR_MESSAGES.has(message || "");
 
 const buildFallbackImage = (label: string) =>
   `data:image/svg+xml;utf8,${encodeURIComponent(`
@@ -173,6 +188,19 @@ function LoginRegister() {
         const teamData = await teamResponse.json();
 
         if (!playerResponse.ok || !teamResponse.ok) {
+          if (
+            isAuthFailure(
+              !playerResponse.ok ? playerResponse.status : teamResponse.status,
+              playerData.message || teamData.message
+            )
+          ) {
+            clearStoredAuth();
+            setFavoritePlayers([]);
+            setFavoriteTeams([]);
+            setProfileMessage("Your session expired. Log in again to manage favorites.");
+            return;
+          }
+
           setProfileMessage(playerData.message || teamData.message || "Could not load saved favorites.");
           return;
         }
@@ -213,8 +241,7 @@ function LoginRegister() {
   };
 
   const handleLogout = () => {
-    localStorage.removeItem("token");
-    localStorage.removeItem("user");
+    clearStoredAuth();
     setUser(null);
     setAuthModalOpen(false);
     setProfileOpen(false);
@@ -313,6 +340,14 @@ function LoginRegister() {
       const data = await response.json();
 
       if (!response.ok) {
+        if (isAuthFailure(response.status, data.message)) {
+          clearStoredAuth();
+          setFavoritePlayers([]);
+          setFavoriteTeams([]);
+          setProfileMessage("Your session expired. Log in again to manage favorites.");
+          return;
+        }
+
         setProfileMessage(data.message || "Could not remove favorite player.");
         return;
       }
@@ -353,6 +388,14 @@ function LoginRegister() {
       const data = await response.json();
 
       if (!response.ok) {
+        if (isAuthFailure(response.status, data.message)) {
+          clearStoredAuth();
+          setFavoritePlayers([]);
+          setFavoriteTeams([]);
+          setProfileMessage("Your session expired. Log in again to manage favorites.");
+          return;
+        }
+
         setProfileMessage(data.message || "Could not remove favorite team.");
         return;
       }
@@ -573,7 +616,7 @@ function LoginRegister() {
                     </div>
 
                     <div className="rounded border border-slate-200 bg-slate-50 p-4 text-sm font-semibold text-slate-600">
-                      Bio remains a session-only profile extra for now. Favorites below are now backed by the real favorites API and persist on the backend.
+                      Your bio is still session-only for now. Favorites are saved to your account and stay available when you come back.
                     </div>
                   </div>
 
@@ -597,10 +640,10 @@ function LoginRegister() {
                             Saved Favorites
                           </p>
                           <h3 className="mt-2 text-2xl font-black tracking-tight">
-                            Real API-Backed Favorites
+                            Your Saved Favorites
                           </h3>
                           <p className="mt-2 text-sm font-semibold text-slate-600">
-                            Add favorites from the search results page. Manage them here once they are saved.
+                            Save players and teams from search, then come back here to view or remove them anytime.
                           </p>
                         </div>
                         <button
