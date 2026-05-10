@@ -8,24 +8,39 @@ import LoginRegister from "./components/LoginRegister";
 import SearchBar from "./components/SearchBar";
 import AdminConfigPanel from "./components/AdminConfigPanel";
 import type { SearchMode } from "./components/SearchBar";
-import HomePage from "./assets/pages/HomePage";
+//import HomePage from "./assets/pages/HomePage";
 import SearchResultsPage from "./assets/pages/SearchResultsPage";
 import { searchPlayer } from "./sportsdbaAPI";
 import "./App.css";
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
-const buildFallbackImage = (name: string) =>
-  `data:image/svg+xml;utf8,${encodeURIComponent(`
+// Fallback shown only when TheSportsDB returns no thumbnail.
+// The enrichment in loadPublicConfig() replaces imageUrl with strThumb when available.
+const buildFallbackImage = (name: string) => {
+  const initials = name
+    .split(" ")
+    .map((w) => w[0])
+    .join("")
+    .substring(0, 2)
+    .toUpperCase();
+  return `data:image/svg+xml;utf8,${encodeURIComponent(`
     <svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256">
-      <rect width="256" height="256" fill="#facc15"/>
-      <rect x="10" y="10" width="236" height="236" fill="none" stroke="#000000" stroke-width="8"/>
-      <text x="50%" y="50%" dominant-baseline="middle" text-anchor="middle"
-        font-family="Arial, sans-serif" font-size="28" font-weight="700" fill="#000000">
-        ${name}
+      <rect width="256" height="256" fill="#18181b"/>
+      <rect x="0" y="0" width="256" height="6" fill="#facc15"/>
+      <circle cx="128" cy="90" r="44" fill="#27272a"/>
+      <rect x="52" y="155" width="152" height="80" rx="8" fill="#27272a"/>
+      <text x="128" y="103" dominant-baseline="middle" text-anchor="middle"
+        font-family="Arial, sans-serif" font-size="36" font-weight="900" fill="#facc15">
+        ${initials}
+      </text>
+      <text x="128" y="205" dominant-baseline="middle" text-anchor="middle"
+        font-family="Arial, sans-serif" font-size="15" font-weight="700" fill="#a1a1aa">
+        ${name.substring(0, 16)}
       </text>
     </svg>
   `)}`;
+};
 
 const featuredPlayerCatalog: Record<
   string,
@@ -292,29 +307,40 @@ function AppLayout() {
       </a>
 
       {/* ── Primary navigation ─────────────────────────────────────────────── */}
-      <header>
+      <header className="sticky top-0 z-50">
         <nav
           aria-label="Primary navigation"
-          className="sticky top-0 z-50 flex items-center justify-between gap-6 border-b-4 border-black bg-white/90 px-8 py-4 backdrop-blur-md dark:border-zinc-800 dark:bg-black/90"
+          className="flex items-center justify-between gap-6 border-b-4 border-black bg-white/95 px-8 py-4 backdrop-blur-md dark:border-zinc-800 dark:bg-black/95"
         >
           {/* Logo / home link */}
           <button
             type="button"
             onClick={() => navigate("/")}
             className="
-              flex items-center gap-3
+              group flex items-center gap-3
               focus-visible:outline focus-visible:outline-offset-2 focus-visible:outline-yellow-400
             "
             aria-label="Sports Tracker — go to home page"
           >
+            {/* Badge: grows + inverts colours on hover, snaps back on click */}
             <div
-              className="flex h-12 w-12 items-center justify-center border-2 border-black bg-yellow-400 text-2xl font-black text-black"
+              className="
+                flex h-12 w-12 items-center justify-center border-2 border-black
+                bg-yellow-400 text-2xl font-black text-black
+                transition-all duration-200
+                group-hover:scale-110 group-hover:bg-black group-hover:text-yellow-400
+                group-active:scale-95
+              "
               aria-hidden="true"
             >
               ST
             </div>
+            {/* Wordmark: yellow underline slides in on hover */}
             <span className="text-3xl font-black tracking-tighter">
-              Sports <span className="text-yellow-500">Tracker</span>
+              Sports{" "}
+              <span className="relative text-yellow-500 after:absolute after:bottom-0.5 after:left-0 after:h-0.75 after:w-0 after:bg-yellow-400 after:transition-all after:duration-200 group-hover:after:w-full">
+                Tracker
+              </span>
             </span>
           </button>
 
@@ -418,11 +444,18 @@ function AppLayout() {
                     aria-label="Home page content"
                     className="space-y-12 lg:col-span-8"
                   >
-                    {/* Hero banner */}
+                    {/* ── Hero banner ──────────────────────────────────── */}
                     <div
-                      className="relative overflow-hidden border border-slate-800 bg-zinc-900 p-12 text-white"
+                      className="
+                        relative overflow-hidden p-12
+                        border-4 border-black bg-white text-slate-900
+                        dark:border-zinc-700 dark:bg-zinc-900 dark:text-white
+                      "
                       aria-labelledby="hero-heading"
                     >
+                      {/* Accent stripe — always yellow */}
+                      <div className="absolute left-0 top-0 h-full w-1 bg-yellow-400" aria-hidden="true" />
+
                       <div className="relative z-10">
                         <h1
                           id="hero-heading"
@@ -430,16 +463,17 @@ function AppLayout() {
                         >
                           {renderHeroHeadline()}
                         </h1>
-                        <p className="mb-8 max-w-sm text-[10px] font-bold tracking-widest text-slate-400">
+                        <p className="mb-8 max-w-sm text-[10px] font-bold tracking-widest text-slate-500 dark:text-slate-400">
                           {homeHeroSubtext}
                         </p>
-                        <div className="flex gap-4" role="group" aria-label="Quick navigation">
+                        <div className="flex flex-wrap gap-4" role="group" aria-label="Quick navigation">
                           <button
                             type="button"
                             onClick={() => navigate("/search?q=Lionel%20Messi&mode=players")}
                             className="
-                              bg-yellow-400 px-6 py-3 text-xs font-black tracking-widest text-black
-                              transition-colors hover:bg-white
+                              border-2 border-black bg-yellow-400 px-6 py-3
+                              text-xs font-black tracking-widest text-black
+                              transition-all hover:bg-black hover:text-yellow-400
                               focus-visible:outline focus-visible:outline-offset-2 focus-visible:outline-yellow-400
                             "
                           >
@@ -449,9 +483,11 @@ function AppLayout() {
                             type="button"
                             onClick={() => navigate("/search?q=English%20Premier%20League&mode=teams")}
                             className="
-                              border border-white/20 bg-white/10 px-8 py-3 text-xs font-black tracking-widest
-                              transition-colors hover:bg-white/20
+                              border-2 border-black bg-transparent px-8 py-3
+                              text-xs font-black tracking-widest text-slate-900
+                              transition-all hover:bg-black hover:text-white
                               focus-visible:outline focus-visible:outline-offset-2 focus-visible:outline-yellow-400
+                              dark:border-zinc-500 dark:text-zinc-200 dark:hover:bg-white dark:hover:text-black
                             "
                           >
                             Search Teams
@@ -459,8 +495,7 @@ function AppLayout() {
                         </div>
                       </div>
                     </div>
-
-                    <HomePage />
+                    {/* The nav already has a SearchBar — no need to duplicate it here */}
 
                     {/* Trending Players */}
                     <section aria-labelledby="trending-heading">

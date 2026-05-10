@@ -335,9 +335,8 @@ function SearchResultsPage() {
         if (mode === "competitions") {
           if (!matchingCompetitions.length) {
             setError("No competition matches found. Try a full league name or a known alias like 'la liga' or 'epl'.");
-          } else if (matchingCompetitions.length === 1) {
-            setSelectedCompetition(matchingCompetitions[0]);
           }
+          // Table only shown when user explicitly clicks a competition card
         }
       } catch (err) {
         console.error("Search failed:", err);
@@ -404,6 +403,7 @@ function SearchResultsPage() {
           initialMode={mode}
           onSearch={handleSearch}
           placeholder="Try: Lionel Messi, English Premier League, or la liga"
+          showFilters={false}
         />
 
         <div className="mt-8 space-y-8" aria-live="polite" aria-busy={loading}>
@@ -588,7 +588,9 @@ function SearchResultsPage() {
                             <div>
                               <p className="font-black dark:text-zinc-100">{competition.name}</p>
                               <p className="text-sm font-semibold dark:text-zinc-300">{competition.country}</p>
-                              <p className={mutedText}>Click to view league table</p>
+                              <p className={mutedText}>
+                                {selected ? "Table shown below ↓" : "Click to view league table"}
+                              </p>
                             </div>
                           </button>
                         </li>
