@@ -246,6 +246,11 @@ const createPgStore = () => {
           position TEXT NULL,
           image_url TEXT NULL,
           raw_payload JSONB NOT NULL,
+          created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+        )
+      `);
+
+      await pool.query(`
         CREATE TABLE IF NOT EXISTS password_reset_tokens (
           id SERIAL PRIMARY KEY,
           user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -264,7 +269,8 @@ const createPgStore = () => {
         ADD COLUMN IF NOT EXISTS sport TEXT,
         ADD COLUMN IF NOT EXISTS position TEXT,
         ADD COLUMN IF NOT EXISTS image_url TEXT,
-        ADD COLUMN IF NOT EXISTS raw_payload JSONB
+        ADD COLUMN IF NOT EXISTS raw_payload JSONB,
+        ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
       `);
 
       await pool.query(`
@@ -306,7 +312,8 @@ const createPgStore = () => {
         ADD COLUMN IF NOT EXISTS league_name TEXT,
         ADD COLUMN IF NOT EXISTS country TEXT,
         ADD COLUMN IF NOT EXISTS badge_url TEXT,
-        ADD COLUMN IF NOT EXISTS raw_payload JSONB
+        ADD COLUMN IF NOT EXISTS raw_payload JSONB,
+        ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
       `);
 
       await pool.query(`
