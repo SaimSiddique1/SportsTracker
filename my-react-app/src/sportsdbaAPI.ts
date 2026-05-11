@@ -118,6 +118,52 @@ export const getLeagueTable = async (leagueId: string, season: string) => {
   }
 };
 
+const normalizeTeamName = (value?: string) =>
+  (value || "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+
+export const getExpandedLeagueTable = async (
+  leagueId: string,
+  season: string,
+  leagueName: string
+) => {
+  const table = await getLeagueTable(leagueId, season);
+
+  if (!leagueName || table.length > 10) {
+    return table;
+  }
+
+  const leagueTeams = await getTeamsByLeague(leagueName);
+  const seenTeams = new Set(
+    table.map((row: any) => row.idTeam || normalizeTeamName(row.strTeam)).filter(Boolean)
+  );
+  const expandedRows = [...table];
+
+  leagueTeams.forEach((team: any) => {
+    const teamKey = team.idTeam || normalizeTeamName(team.strTeam);
+
+    if (!teamKey || seenTeams.has(teamKey)) {
+      return;
+    }
+
+    seenTeams.add(teamKey);
+    expandedRows.push({
+      idTeam: team.idTeam,
+      strTeam: team.strTeam,
+      strBadge: team.strTeamBadge,
+      intRank: expandedRows.length + 1,
+      intPlayed: "-",
+      intPoints: "-",
+      isRosterOnly: true,
+    });
+  });
+
+  return expandedRows;
+};
+
 // Search players by name
 export const searchPlayer = async (playerName: string) => {
   try {
@@ -138,6 +184,17 @@ export const getPlayerStats = async (playerId: string) => {
     return safeArray(response.data.players);
   } catch (err: any) {
     console.error("getPlayerStats failed:", err.message);
+    return [];
+  }
+};
+
+// Get all players on a team roster by team ID
+export const getPlayersByTeamId = async (teamId: string) => {
+  try {
+    const response = await api.get(`/lookup_all_players.php?id=${teamId}`);
+    return safeArray(response.data.player);
+  } catch (err: any) {
+    console.error("getPlayersByTeamId failed:", err.message);
     return [];
   }
 };

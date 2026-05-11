@@ -10,7 +10,7 @@ import AdminConfigPanel from "./components/AdminConfigPanel";
 import type { SearchMode } from "./components/SearchBar";
 import HomePage from "./assets/pages/HomePage";
 import SearchResultsPage from "./assets/pages/SearchResultsPage";
-import { searchPlayer } from "./sportsdbaAPI";
+import { getPlayerStats, searchPlayer } from "./sportsdbaAPI";
 import "./App.css";
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:5001";
@@ -47,6 +47,22 @@ type FavoritePlayerRecord = {
   imageUrl?: string | null;
 };
 
+type PlayerProfile = {
+  idPlayer?: string;
+  strPlayer?: string;
+  strTeam?: string;
+  strThumb?: string;
+  strPosition?: string;
+  strNationality?: string;
+  strAge?: string;
+  strHeight?: string;
+  strWeight?: string;
+  intGoals?: string;
+  intAssists?: string;
+};
+
+const displayValue = (value?: string | null) => (value && value.trim() ? value : "Not listed");
+
 function AppLayout() {
   const navigate = useNavigate();
   const [isAdmin, setIsAdmin] = useState(false);
@@ -61,6 +77,9 @@ function AppLayout() {
   ]);
   const [favoritePlayers, setFavoritePlayers] = useState<Array<{ name: string; team: string; position: string; sport: string; imageUrl: string; externalId: string }>>([]);
   const [isMaintenanceLoading, setIsMaintenanceLoading] = useState(true);
+  const [selectedPlayerName, setSelectedPlayerName] = useState("");
+  const [selectedPlayerProfile, setSelectedPlayerProfile] = useState<PlayerProfile | null>(null);
+  const [playerProfileLoading, setPlayerProfileLoading] = useState(false);
 
   useEffect(() => {
     const syncUserRole = () => {
@@ -232,6 +251,34 @@ function AppLayout() {
     navigate(`/search?q=${encodeURIComponent(query)}&mode=${mode}`);
   };
 
+  const openPlayerPopup = async (playerName: string) => {
+    setSelectedPlayerName(playerName);
+    setSelectedPlayerProfile(null);
+    setPlayerProfileLoading(true);
+
+    try {
+      const results = await searchPlayer(playerName);
+      const match = Array.isArray(results)
+        ? results.find((player) => player?.strPlayer?.toLowerCase() === playerName.toLowerCase()) ?? results[0]
+        : null;
+
+      if (match?.idPlayer) {
+        const stats = await getPlayerStats(match.idPlayer);
+        setSelectedPlayerProfile((Array.isArray(stats) ? stats[0] : null) || match);
+        return;
+      }
+
+      setSelectedPlayerProfile(match || { strPlayer: playerName });
+    } finally {
+      setPlayerProfileLoading(false);
+    }
+  };
+
+  const closePlayerPopup = () => {
+    setSelectedPlayerName("");
+    setSelectedPlayerProfile(null);
+  };
+
   const showMaintenanceScreen = maintenanceMode && !isAdmin;
   const isDefaultWelcomeHeadline = homeHeroHeadline.trim().toLowerCase() === "welcome to sports tracker!" ||
     homeHeroHeadline.trim().toLowerCase() === "welcome to sports tracker";
@@ -376,6 +423,7 @@ function AppLayout() {
                             goals={player.goals}
                             assists={player.assists}
                             imageUrl={player.imageUrl}
+                            onViewDetails={() => openPlayerPopup(player.name)}
                             onCompare={() =>
                               navigate(
                                 `/search?q=${encodeURIComponent(player.name)}&mode=players&compare=${encodeURIComponent(player.name)}`
@@ -407,6 +455,7 @@ function AppLayout() {
                             {favoritePlayers.map((player) => (
                               <article
                                 key={player.externalId}
+                                onClick={() => openPlayerPopup(player.name)}
                                 className="border-2 border-black bg-white transition-all dark:border-zinc-800 dark:bg-zinc-900"
                               >
                                 <div className="grid grid-cols-[8rem_1fr] gap-4 p-6">
@@ -442,11 +491,12 @@ function AppLayout() {
 
                                 <button
                                   className="w-full border-t-2 border-black bg-yellow-400 py-3 text-[10px] font-black tracking-widest text-black transition-all hover:bg-black hover:text-white"
-                                  onClick={() =>
+                                  onClick={(event) => {
+                                    event.stopPropagation();
                                     navigate(
                                       `/search?q=${encodeURIComponent(player.name)}&mode=players&compare=${encodeURIComponent(player.name)}`
-                                    )
-                                  }
+                                    );
+                                  }}
                                   type="button"
                                 >
                                   Compare Player
@@ -481,6 +531,85 @@ function AppLayout() {
                 <div className="mx-auto max-w-7xl px-8 pb-12">
                   <AdminConfigPanel />
                 </div>
+                {selectedPlayerName ? (
+                  <div
+                    className="fixed inset-0 z-[80] flex items-center justify-center bg-black/60 p-4"
+                    role="dialog"
+                    aria-modal="true"
+                    onMouseDown={(event) => {
+                      if (event.target === event.currentTarget) {
+                        closePlayerPopup();
+                      }
+                    }}
+                  >
+                    <section className="max-h-[90vh] w-full max-w-2xl overflow-y-auto border-4 border-black bg-white p-6 shadow-[10px_10px_0_0_rgba(250,204,21,1)]">
+                      <div className="mb-5 flex justify-end">
+                        <button
+                          type="button"
+                          onClick={closePlayerPopup}
+                          className="border-2 border-black bg-black px-3 py-2 text-[10px] font-black uppercase tracking-[0.2em] text-white"
+                        >
+                          Close
+                        </button>
+                      </div>
+                      {playerProfileLoading ? (
+                        <p className="font-semibold">Loading player stats...</p>
+                      ) : (
+                        <div>
+                          <div className="grid gap-5 md:grid-cols-[11rem_1fr]">
+                            <img
+                              src={selectedPlayerProfile?.strThumb || buildFallbackImage(selectedPlayerName)}
+                              alt={selectedPlayerProfile?.strPlayer || selectedPlayerName}
+                              className="h-44 w-44 border-2 border-black object-cover"
+                            />
+                            <div>
+                              <p className="text-[10px] font-black uppercase tracking-[0.25em] text-yellow-600">
+                                Player Profile
+                              </p>
+                              <h2 className="mt-2 text-3xl font-black tracking-tight">
+                                {selectedPlayerProfile?.strPlayer || selectedPlayerName}
+                              </h2>
+                              <p className="mt-1 text-sm font-bold text-slate-600">
+                                {displayValue(selectedPlayerProfile?.strTeam)}
+                              </p>
+                              {selectedPlayerProfile?.strTeam ? (
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    navigate(
+                                      `/search?q=${encodeURIComponent(selectedPlayerProfile.strTeam || "")}&mode=teams`
+                                    )
+                                  }
+                                  className="mt-4 border-2 border-black bg-yellow-300 px-3 py-2 text-[10px] font-black uppercase tracking-[0.2em]"
+                                >
+                                  View Team Players
+                                </button>
+                              ) : null}
+                            </div>
+                          </div>
+                          <div className="mt-6 grid gap-3 sm:grid-cols-2">
+                            {[
+                              ["Position", selectedPlayerProfile?.strPosition],
+                              ["Nationality", selectedPlayerProfile?.strNationality],
+                              ["Age", selectedPlayerProfile?.strAge],
+                              ["Height", selectedPlayerProfile?.strHeight],
+                              ["Weight", selectedPlayerProfile?.strWeight],
+                              ["Goals", selectedPlayerProfile?.intGoals],
+                              ["Assists", selectedPlayerProfile?.intAssists],
+                            ].map(([label, value]) => (
+                              <div key={label} className="border border-slate-200 bg-slate-50 p-3">
+                                <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">
+                                  {label}
+                                </p>
+                                <p className="mt-1 font-black">{displayValue(value)}</p>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </section>
+                  </div>
+                ) : null}
               </>
             }
           />

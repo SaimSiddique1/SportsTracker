@@ -1,9 +1,11 @@
 import { useEffect, useMemo, useState } from "react";
+import type { MouseEvent } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import SearchBar from "../../components/SearchBar";
 import type { SearchMode } from "../../components/SearchBar";
 import {
-  getLeagueTable as getSportsDbLeagueTable,
+  getExpandedLeagueTable,
+  getPlayersByTeamId,
   getPlayerStats,
   searchPlayer,
   searchTeam,
@@ -15,6 +17,8 @@ type TeamResult = {
   strLeague?: string;
   strTeamBadge?: string;
   strCountry?: string;
+  strStadium?: string;
+  strDescriptionEN?: string;
 };
 
 type PlayerResult = {
@@ -24,6 +28,13 @@ type PlayerResult = {
   strSport?: string;
   strThumb?: string;
   strPosition?: string;
+  strNationality?: string;
+  strAge?: string;
+  strHeight?: string;
+  strWeight?: string;
+  intGoals?: string;
+  intAssists?: string;
+  strDescriptionEN?: string;
 };
 
 type PlayerComparisonProfile = {
@@ -251,6 +262,7 @@ type TableRow = {
   strTeam?: string;
   intPlayed?: string | number;
   intPoints?: string | number;
+  isRosterOnly?: boolean;
 };
 
 type Competition = {
@@ -307,6 +319,274 @@ const competitions: Competition[] = [
 
 const normalizeCompetitionQuery = (query: string) => query.trim().toLowerCase();
 
+type DetailModal =
+  | { type: "player"; player: PlayerResult }
+  | { type: "team"; team: TeamResult }
+  | { type: "league"; competition: Competition }
+  | null;
+
+interface DetailsModalProps {
+  modal: DetailModal;
+  onClose: () => void;
+  onOpenPlayer: (player: PlayerResult) => void;
+  onOpenTeamByName: (teamName: string) => void;
+}
+
+function DetailsModal({ modal, onClose, onOpenPlayer, onOpenTeamByName }: DetailsModalProps) {
+  const [playerProfile, setPlayerProfile] = useState<PlayerResult | null>(null);
+  const [teamPlayers, setTeamPlayers] = useState<PlayerResult[]>([]);
+  const [leagueTable, setLeagueTable] = useState<TableRow[]>([]);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    setPlayerProfile(null);
+    setTeamPlayers([]);
+    setLeagueTable([]);
+
+    if (!modal) {
+      return;
+    }
+
+    const loadDetails = async () => {
+      setLoading(true);
+
+      try {
+        if (modal.type === "player" && modal.player.idPlayer) {
+          const players = await getPlayerStats(modal.player.idPlayer);
+          setPlayerProfile((Array.isArray(players) ? players[0] : null) || modal.player);
+        }
+
+        if (modal.type === "team" && modal.team.idTeam) {
+          const roster = await getPlayersByTeamId(modal.team.idTeam);
+          setTeamPlayers(Array.isArray(roster) ? roster.slice(0, 40) : []);
+        }
+
+        if (modal.type === "league") {
+          const table = await getExpandedLeagueTable(
+            modal.competition.id,
+            modal.competition.season,
+            modal.competition.name
+          );
+          setLeagueTable(Array.isArray(table) ? table : []);
+        }
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadDetails();
+  }, [modal]);
+
+  if (!modal) {
+    return null;
+  }
+
+  const closeOnBackdrop = (event: MouseEvent<HTMLDivElement>) => {
+    if (event.target === event.currentTarget) {
+      onClose();
+    }
+  };
+
+  const renderPlayer = () => {
+    if (modal.type !== "player") {
+      return null;
+    }
+
+    const profile = playerProfile || modal.player;
+    const playerName = profile.strPlayer || modal.player.strPlayer || "Player";
+    const stats = [
+      ["Team", profile.strTeam],
+      ["Position", profile.strPosition],
+      ["Nationality", profile.strNationality],
+      ["Age", profile.strAge],
+      ["Height", profile.strHeight],
+      ["Weight", profile.strWeight],
+      ["Goals", profile.intGoals],
+      ["Assists", profile.intAssists],
+    ].filter(([, value]) => value && value !== EMPTY_VALUE);
+
+    return (
+      <>
+        <div className="grid gap-5 md:grid-cols-[11rem_1fr]">
+          <img
+            src={profile.strThumb || buildFallbackImage(playerName)}
+            alt={playerName}
+            className="h-44 w-44 border-2 border-black object-cover"
+          />
+          <div>
+            <p className="text-[10px] font-black uppercase tracking-[0.25em] text-yellow-600">Player Profile</p>
+            <h2 className="mt-2 text-3xl font-black tracking-tight">{playerName}</h2>
+            <p className="mt-1 text-sm font-bold text-slate-600">{profile.strTeam || "Team not listed"}</p>
+            {profile.strTeam ? (
+              <button
+                type="button"
+                onClick={() => onOpenTeamByName(profile.strTeam!)}
+                className="mt-4 border-2 border-black bg-yellow-300 px-3 py-2 text-[10px] font-black uppercase tracking-[0.2em]"
+              >
+                View Team Players
+              </button>
+            ) : null}
+          </div>
+        </div>
+
+        {loading ? <p className="mt-5 font-semibold">Loading player stats...</p> : null}
+
+        <div className="mt-6 grid gap-3 sm:grid-cols-2">
+          {stats.map(([label, value]) => (
+            <div key={label} className="border border-slate-200 bg-slate-50 p-3">
+              <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">{label}</p>
+              <p className="mt-1 font-black">{value}</p>
+            </div>
+          ))}
+        </div>
+
+        {profile.strDescriptionEN ? (
+          <p className="mt-5 max-h-36 overflow-y-auto text-sm font-semibold leading-6 text-slate-600">
+            {profile.strDescriptionEN}
+          </p>
+        ) : null}
+      </>
+    );
+  };
+
+  const renderTeam = () => {
+    if (modal.type !== "team") {
+      return null;
+    }
+
+    const teamName = modal.team.strTeam || "Team";
+
+    return (
+      <>
+        <div className="grid gap-5 md:grid-cols-[8rem_1fr]">
+          <img
+            src={modal.team.strTeamBadge || buildFallbackImage(teamName)}
+            alt={teamName}
+            className="h-32 w-32 border-2 border-black bg-white object-contain"
+          />
+          <div>
+            <p className="text-[10px] font-black uppercase tracking-[0.25em] text-yellow-600">Team Roster</p>
+            <h2 className="mt-2 text-3xl font-black tracking-tight">{teamName}</h2>
+            <p className="mt-1 text-sm font-bold text-slate-600">{modal.team.strLeague || "League not listed"}</p>
+            <p className="mt-1 text-xs font-black uppercase tracking-[0.2em] text-slate-500">
+              {modal.team.strCountry || "Country not listed"}
+            </p>
+          </div>
+        </div>
+
+        {loading ? <p className="mt-5 font-semibold">Loading players...</p> : null}
+
+        {!loading && teamPlayers.length ? (
+          <div className="mt-6 max-h-80 overflow-y-auto border border-slate-200">
+            {teamPlayers.map((player) => (
+              <button
+                key={player.idPlayer || player.strPlayer}
+                type="button"
+                onClick={() => onOpenPlayer(player)}
+                className="grid w-full grid-cols-[3.5rem_1fr] items-center gap-3 border-b border-slate-200 bg-white p-3 text-left transition-colors hover:bg-yellow-100"
+              >
+                <img
+                  src={player.strThumb || buildFallbackImage(player.strPlayer || "Player")}
+                  alt={player.strPlayer || "Player"}
+                  className="h-12 w-12 border border-black object-cover"
+                />
+                <div>
+                  <p className="font-black">{player.strPlayer || "Player"}</p>
+                  <p className="text-xs font-semibold text-slate-500">{player.strPosition || player.strSport || "Profile"}</p>
+                </div>
+              </button>
+            ))}
+          </div>
+        ) : null}
+
+        {!loading && !teamPlayers.length ? (
+          <p className="mt-5 font-semibold text-slate-500">No roster was returned for this team.</p>
+        ) : null}
+      </>
+    );
+  };
+
+  const renderLeague = () => {
+    if (modal.type !== "league") {
+      return null;
+    }
+
+    return (
+      <>
+        <div className="flex items-center gap-4">
+          <div className="flex h-16 w-16 items-center justify-center border-2 border-black bg-yellow-400 text-lg font-black">
+            {modal.competition.label}
+          </div>
+          <div>
+            <p className="text-[10px] font-black uppercase tracking-[0.25em] text-yellow-600">Standings</p>
+            <h2 className="text-3xl font-black tracking-tight">{modal.competition.name}</h2>
+            <p className="text-sm font-bold text-slate-600">{modal.competition.season}</p>
+          </div>
+        </div>
+
+        {loading ? <p className="mt-5 font-semibold">Loading standings...</p> : null}
+
+        {!loading && leagueTable.length ? (
+          <div className="mt-6 max-h-[65vh] overflow-y-auto border border-slate-200">
+            <div className="sticky top-0 z-10 grid grid-cols-12 border-b bg-white px-3 py-2 text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">
+              <span className="col-span-1">Pos</span>
+              <span className="col-span-6">Team</span>
+              <span className="col-span-2">Played</span>
+              <span className="col-span-3">Points</span>
+            </div>
+            {leagueTable.map((row) => (
+              <button
+                key={`${row.intRank}-${row.strTeam}`}
+                type="button"
+                onClick={() => row.strTeam && onOpenTeamByName(String(row.strTeam))}
+                className="grid w-full grid-cols-12 border-b px-3 py-3 text-left text-sm font-semibold transition-colors hover:bg-yellow-100"
+              >
+                <span className="col-span-1">{row.intRank}</span>
+                <span className="col-span-6">{row.strTeam}</span>
+                <span className="col-span-2">{row.intPlayed}</span>
+                <span className="col-span-3 font-black">{row.intPoints}</span>
+                {row.isRosterOnly ? (
+                  <span className="col-span-12 mt-1 text-[10px] font-black uppercase tracking-[0.18em] text-slate-400">
+                    Standings stats unavailable from provider
+                  </span>
+                ) : null}
+              </button>
+            ))}
+          </div>
+        ) : null}
+
+        {!loading && !leagueTable.length ? (
+          <p className="mt-5 font-semibold text-slate-500">Standings were not returned for this season.</p>
+        ) : null}
+      </>
+    );
+  };
+
+  return (
+    <div
+      className="fixed inset-0 z-[80] flex items-center justify-center bg-black/60 p-4"
+      role="dialog"
+      aria-modal="true"
+      onMouseDown={closeOnBackdrop}
+    >
+      <section className="max-h-[94vh] w-full max-w-4xl overflow-y-auto border-4 border-black bg-white p-6 shadow-[10px_10px_0_0_rgba(250,204,21,1)]">
+        <div className="mb-5 flex justify-end">
+          <button
+            type="button"
+            onClick={onClose}
+            className="border-2 border-black bg-black px-3 py-2 text-[10px] font-black uppercase tracking-[0.2em] text-white"
+          >
+            Close
+          </button>
+        </div>
+        {renderPlayer()}
+        {renderTeam()}
+        {renderLeague()}
+      </section>
+    </div>
+  );
+}
+
 function SearchResultsPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -327,6 +607,7 @@ function SearchResultsPage() {
   const [favoriteTeamIds, setFavoriteTeamIds] = useState<string[]>([]);
   const [favoriteMessage, setFavoriteMessage] = useState("");
   const [favoriteLoadingId, setFavoriteLoadingId] = useState("");
+  const [detailModal, setDetailModal] = useState<DetailModal>(null);
 
   const matchingCompetitions = useMemo(() => {
     if (!query) {
@@ -416,11 +697,12 @@ function SearchResultsPage() {
       setTableLoading(true);
 
       try {
-        const table = await getSportsDbLeagueTable(
+        const table = await getExpandedLeagueTable(
           selectedCompetition.id,
-          selectedCompetition.season
+          selectedCompetition.season,
+          selectedCompetition.name
         );
-        setCompetitionTable(Array.isArray(table) ? table.slice(0, 20) : []);
+        setCompetitionTable(Array.isArray(table) ? table : []);
       } catch (err) {
         console.error("League table fetch failed:", err);
         setCompetitionTable([]);
@@ -522,6 +804,27 @@ function SearchResultsPage() {
 
   const clearComparePlayers = () => {
     setSelectedComparePlayers([]);
+  };
+
+  const openPlayerDetails = (player: PlayerResult) => {
+    setDetailModal({ type: "player", player });
+  };
+
+  const openTeamDetails = (team: TeamResult) => {
+    setDetailModal({ type: "team", team });
+  };
+
+  const openTeamDetailsByName = async (teamName: string) => {
+    setDetailModal({ type: "team", team: { strTeam: teamName } });
+
+    const teamResults = await searchTeam(teamName).catch(() => []);
+    const matchedTeam = Array.isArray(teamResults)
+      ? teamResults.find((team) => team.strTeam?.toLowerCase() === teamName.toLowerCase()) ?? teamResults[0]
+      : null;
+
+    if (matchedTeam) {
+      setDetailModal({ type: "team", team: matchedTeam });
+    }
   };
 
   const toggleFavoritePlayer = async (player: PlayerResult) => {
@@ -673,7 +976,8 @@ function SearchResultsPage() {
                   {players.map((player) => (
                     <article
                       key={player.idPlayer}
-                      className="flex gap-4 border border-slate-200 bg-slate-50 p-4"
+                      onClick={() => openPlayerDetails(player)}
+                      className="flex cursor-pointer gap-4 border border-slate-200 bg-slate-50 p-4 transition-colors hover:border-black hover:bg-yellow-50"
                     >
                       <img
                         src={player.strThumb || buildFallbackImage(player.strPlayer || query || "PLAYER")}
@@ -689,7 +993,10 @@ function SearchResultsPage() {
                           </p>
                         </div>
                         <button
-                          onClick={() => addPlayerToCompare(player)}
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            addPlayerToCompare(player);
+                          }}
                           disabled={
                             !player.idPlayer ||
                             selectedComparePlayers.some((selected) => selected.idPlayer === player.idPlayer) ||
@@ -702,7 +1009,10 @@ function SearchResultsPage() {
                             : "Add to Compare"}
                         </button>
                         <button
-                          onClick={() => toggleFavoritePlayer(player)}
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            toggleFavoritePlayer(player);
+                          }}
                           disabled={!player.idPlayer || favoriteLoadingId === `player-${player.idPlayer}`}
                           className="mt-2 w-fit border-2 border-black bg-white px-3 py-1 text-[10px] font-black uppercase tracking-[0.2em] disabled:cursor-not-allowed disabled:opacity-50"
                         >
@@ -741,7 +1051,8 @@ function SearchResultsPage() {
                     {teams.map((team) => (
                       <article
                         key={team.idTeam}
-                        className="flex gap-4 border border-slate-200 bg-slate-50 p-4"
+                        onClick={() => openTeamDetails(team)}
+                        className="flex cursor-pointer gap-4 border border-slate-200 bg-slate-50 p-4 transition-colors hover:border-black hover:bg-yellow-50"
                       >
                         <img
                           src={team.strTeamBadge || buildFallbackImage(team.strTeam || query || "TEAM")}
@@ -755,7 +1066,10 @@ function SearchResultsPage() {
                             {team.strCountry || "Club"}
                           </p>
                           <button
-                            onClick={() => toggleFavoriteTeam(team)}
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              toggleFavoriteTeam(team);
+                            }}
                             disabled={!team.idTeam || favoriteLoadingId === `team-${team.idTeam}`}
                             className="mt-3 border-2 border-black bg-white px-3 py-1 text-[10px] font-black uppercase tracking-[0.2em] disabled:cursor-not-allowed disabled:opacity-50"
                           >
@@ -789,7 +1103,10 @@ function SearchResultsPage() {
                     {matchingCompetitions.map((competition) => (
                       <button
                         key={competition.id}
-                        onClick={() => setSelectedCompetition(competition)}
+                        onClick={() => {
+                          setSelectedCompetition(competition);
+                          setDetailModal({ type: "league", competition });
+                        }}
                         className={`flex items-center gap-4 border-2 p-4 text-left transition-all ${
                           selectedCompetition?.id === competition.id
                             ? "border-black bg-yellow-100"
@@ -803,7 +1120,7 @@ function SearchResultsPage() {
                           <h3 className="font-black">{competition.name}</h3>
                           <p className="text-sm font-semibold">{competition.country}</p>
                           <p className="text-xs uppercase tracking-[0.2em] text-slate-500">
-                            Click to view league table
+                            Click to view standings
                           </p>
                         </div>
                       </button>
@@ -824,8 +1141,8 @@ function SearchResultsPage() {
                   {tableLoading ? (
                     <p className="font-semibold">Loading league table...</p>
                   ) : competitionTable.length ? (
-                    <div className="max-h-[32rem] overflow-y-auto">
-                      <div className="grid grid-cols-12 border-b pb-2 text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">
+                    <div className="max-h-[70vh] overflow-y-auto border border-slate-200">
+                      <div className="sticky top-0 z-10 grid grid-cols-12 border-b bg-slate-50 px-3 py-2 text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">
                         <span className="col-span-1">Pos</span>
                         <span className="col-span-6">Team</span>
                         <span className="col-span-2">Played</span>
@@ -834,12 +1151,23 @@ function SearchResultsPage() {
                       {competitionTable.map((row) => (
                         <div
                           key={`${row.intRank}-${row.strTeam}`}
-                          className="grid grid-cols-12 border-b py-3 text-sm font-semibold"
+                          className="grid grid-cols-12 border-b px-3 py-3 text-sm font-semibold"
                         >
                           <span className="col-span-1">{row.intRank}</span>
-                          <span className="col-span-6">{row.strTeam}</span>
+                          <button
+                            type="button"
+                            onClick={() => row.strTeam && openTeamDetailsByName(String(row.strTeam))}
+                            className="col-span-6 text-left font-black hover:text-yellow-700"
+                          >
+                            {row.strTeam}
+                          </button>
                           <span className="col-span-2">{row.intPlayed}</span>
                           <span className="col-span-3 font-black">{row.intPoints}</span>
+                          {row.isRosterOnly ? (
+                            <span className="col-span-12 mt-1 text-[10px] font-black uppercase tracking-[0.18em] text-slate-400">
+                              Standings stats unavailable from provider
+                            </span>
+                          ) : null}
                         </div>
                       ))}
                     </div>
@@ -857,6 +1185,12 @@ function SearchResultsPage() {
           ) : null}
         </div>
       </section>
+      <DetailsModal
+        modal={detailModal}
+        onClose={() => setDetailModal(null)}
+        onOpenPlayer={openPlayerDetails}
+        onOpenTeamByName={openTeamDetailsByName}
+      />
     </main>
   );
 }
