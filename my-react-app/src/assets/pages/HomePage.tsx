@@ -10,9 +10,9 @@ function HomePage() {
   }
 
   return (
-    <section>
+    <section aria-label="Quick search">
       <SearchBar onSearch={handleSearch} />
-     </section>
+    </section>
   )
 }
 

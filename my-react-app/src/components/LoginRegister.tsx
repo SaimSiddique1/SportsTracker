@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import LoginPage from "../assets/pages/LoginPage.jsx";
 import RegisterPage from "../assets/pages/RegisterPage.jsx";
@@ -62,44 +62,59 @@ type FavoriteTeamRecord = {
 };
 
 const validateNewPassword = (password: string) => {
-  if (!password) {
-    return "";
-  }
-
-  if (password.length < 8) {
-    return "Weak password: it must be at least 8 characters long.";
-  }
-
-  if (!/[A-Z]/.test(password)) {
-    return "Weak password: include at least one uppercase letter.";
-  }
-
-  if (!/[a-z]/.test(password)) {
-    return "Weak password: include at least one lowercase letter.";
-  }
-
-  if (!/[0-9]/.test(password)) {
-    return "Weak password: include at least one number.";
-  }
-
-  if (!/[^A-Za-z0-9]/.test(password)) {
-    return "Weak password: include at least one special character.";
-  }
-
+  if (!password) return "";
+  if (password.length < 8) return "Weak password: it must be at least 8 characters long.";
+  if (!/[A-Z]/.test(password)) return "Weak password: include at least one uppercase letter.";
+  if (!/[a-z]/.test(password)) return "Weak password: include at least one lowercase letter.";
+  if (!/[0-9]/.test(password)) return "Weak password: include at least one number.";
+  if (!/[^A-Za-z0-9]/.test(password)) return "Weak password: include at least one special character.";
   return "";
 };
+
+/** Trap focus inside a ref'd container */
+function useFocusTrap(active: boolean) {
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!active || !containerRef.current) return;
+
+    const container = containerRef.current;
+    const focusable = 'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])';
+
+    const getFocusable = () => Array.from(container.querySelectorAll<HTMLElement>(focusable)).filter(
+      (el) => !el.hasAttribute("disabled") && el.offsetParent !== null
+    );
+
+    // Focus first element
+    const first = getFocusable()[0];
+    first?.focus();
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key !== "Tab") return;
+      const focusable = getFocusable();
+      if (!focusable.length) return;
+      const firstEl = focusable[0];
+      const lastEl = focusable[focusable.length - 1];
+      if (e.shiftKey) {
+        if (document.activeElement === firstEl) { e.preventDefault(); lastEl.focus(); }
+      } else {
+        if (document.activeElement === lastEl) { e.preventDefault(); firstEl.focus(); }
+      }
+    };
+
+    container.addEventListener("keydown", handleKeyDown);
+    return () => container.removeEventListener("keydown", handleKeyDown);
+  }, [active]);
+
+  return containerRef;
+}
 
 function LoginRegister() {
   const [authModalOpen, setAuthModalOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
   const [page, setPage] = useState<"login" | "register">("login");
   const [user, setUser] = useState<AuthUser | null>(null);
-  const [profileForm, setProfileForm] = useState({
-    username: "",
-    bio: "",
-    currentPassword: "",
-    newPassword: "",
-  });
+  const [profileForm, setProfileForm] = useState({ username: "", bio: "", currentPassword: "", newPassword: "" });
   const [profileMessage, setProfileMessage] = useState("");
   const [isSavingProfile, setIsSavingProfile] = useState(false);
   const [favoritePlayers, setFavoritePlayers] = useState<FavoritePlayerRecord[]>([]);
@@ -107,114 +122,58 @@ function LoginRegister() {
   const [favoritesLoading, setFavoritesLoading] = useState(false);
   const [favoriteActionKey, setFavoriteActionKey] = useState("");
 
-  const currentUserLabel = useMemo(
-    () => user?.username || user?.email || "User",
-    [user]
-  );
+  const currentUserLabel = useMemo(() => user?.username || user?.email || "User", [user]);
+
+  // Focus traps
+  const authModalRef = useFocusTrap(authModalOpen);
+  const profileModalRef = useFocusTrap(profileOpen);
 
   useEffect(() => {
     const syncUser = () => {
       const rawUser = localStorage.getItem("user");
       const token = localStorage.getItem("token");
-
-      if (!rawUser || !token) {
-        localStorage.removeItem("user");
-        setUser(null);
-        return;
-      }
-
-      try {
-        const parsedUser = JSON.parse(rawUser);
-        setUser(parsedUser);
-      } catch {
-        setUser(null);
-      }
+      if (!rawUser || !token) { localStorage.removeItem("user"); setUser(null); return; }
+      try { setUser(JSON.parse(rawUser)); } catch { setUser(null); }
     };
-
     syncUser();
     window.addEventListener("auth-changed", syncUser);
     window.addEventListener("storage", syncUser);
-
-    return () => {
-      window.removeEventListener("auth-changed", syncUser);
-      window.removeEventListener("storage", syncUser);
-    };
+    return () => { window.removeEventListener("auth-changed", syncUser); window.removeEventListener("storage", syncUser); };
   }, []);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
-
-    if (params.get("resetToken")) {
-      setPage("login");
-      setAuthModalOpen(true);
-      setProfileOpen(false);
-    }
+    if (params.get("resetToken")) { setPage("login"); setAuthModalOpen(true); setProfileOpen(false); }
   }, []);
 
   useEffect(() => {
-    if (!profileOpen || !user) {
-      return;
-    }
-
-    setProfileForm({
-      username: user.username || "",
-      bio: user.bio || "",
-      currentPassword: "",
-      newPassword: "",
-    });
+    if (!profileOpen || !user) return;
+    setProfileForm({ username: user.username || "", bio: user.bio || "", currentPassword: "", newPassword: "" });
     setProfileMessage("");
   }, [profileOpen, user]);
 
   useEffect(() => {
-    if (!profileOpen || !user) {
-      return;
-    }
-
+    if (!profileOpen || !user) return;
     const loadFavorites = async () => {
       const token = localStorage.getItem("token");
-      if (!token) {
-        setFavoritePlayers([]);
-        setFavoriteTeams([]);
-        return;
-      }
-
+      if (!token) { setFavoritePlayers([]); setFavoriteTeams([]); return; }
       setFavoritesLoading(true);
-
       try {
         const [playerResponse, teamResponse] = await Promise.all([
-          fetch(`${API_BASE_URL}/api/favorites/players`, {
-            headers: {
-              Authorization: `Bearer ${token}`,
-            },
-          }),
-          fetch(`${API_BASE_URL}/api/favorites/teams`, {
-            headers: {
-              Authorization: `Bearer ${token}`,
-            },
-          }),
+          fetch(`${API_BASE_URL}/api/favorites/players`, { headers: { Authorization: `Bearer ${token}` } }),
+          fetch(`${API_BASE_URL}/api/favorites/teams`, { headers: { Authorization: `Bearer ${token}` } }),
         ]);
-
         const playerData = await playerResponse.json();
         const teamData = await teamResponse.json();
-
         if (!playerResponse.ok || !teamResponse.ok) {
-          if (
-            isAuthFailure(
-              !playerResponse.ok ? playerResponse.status : teamResponse.status,
-              playerData.message || teamData.message
-            )
-          ) {
-            clearStoredAuth();
-            setFavoritePlayers([]);
-            setFavoriteTeams([]);
+          if (isAuthFailure(!playerResponse.ok ? playerResponse.status : teamResponse.status, playerData.message || teamData.message)) {
+            clearStoredAuth(); setFavoritePlayers([]); setFavoriteTeams([]);
             setProfileMessage("Your session expired. Log in again to manage favorites.");
             return;
           }
-
           setProfileMessage(playerData.message || teamData.message || "Could not load saved favorites.");
           return;
         }
-
         setFavoritePlayers(Array.isArray(playerData.favorites) ? playerData.favorites : []);
         setFavoriteTeams(Array.isArray(teamData.favorites) ? teamData.favorites : []);
       } catch (error) {
@@ -224,24 +183,23 @@ function LoginRegister() {
         setFavoritesLoading(false);
       }
     };
-
     loadFavorites();
   }, [profileOpen, user]);
 
   useEffect(() => {
-    if (!authModalOpen && !profileOpen) {
-      return;
-    }
-
+    if (!authModalOpen && !profileOpen) return;
     const handleEscape = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
-        setAuthModalOpen(false);
-        setProfileOpen(false);
-      }
+      if (event.key === "Escape") { setAuthModalOpen(false); setProfileOpen(false); }
     };
-
     window.addEventListener("keydown", handleEscape);
     return () => window.removeEventListener("keydown", handleEscape);
+  }, [authModalOpen, profileOpen]);
+
+  // Lock body scroll when modal open
+  useEffect(() => {
+    const isOpen = authModalOpen || profileOpen;
+    document.body.style.overflow = isOpen ? "hidden" : "";
+    return () => { document.body.style.overflow = ""; };
   }, [authModalOpen, profileOpen]);
 
   const openModal = (nextPage: "login" | "register") => {
@@ -257,66 +215,31 @@ function LoginRegister() {
     setProfileOpen(false);
   };
 
-  const handleProfileChange = (
-    event: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
-  ) => {
+  const handleProfileChange = (event: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = event.target;
     setProfileForm((current) => ({ ...current, [name]: value }));
   };
 
   const handleProfileSave = async (event: React.FormEvent) => {
     event.preventDefault();
-
-    if (!user?.email) {
-      setProfileMessage("Could not find your account email for this session.");
-      return;
-    }
-
+    if (!user?.email) { setProfileMessage("Could not find your account email for this session."); return; }
     const passwordError = validateNewPassword(profileForm.newPassword);
-    if (passwordError) {
-      setProfileMessage(passwordError);
-      return;
-    }
-
+    if (passwordError) { setProfileMessage(passwordError); return; }
     setIsSavingProfile(true);
     setProfileMessage("");
-
     try {
       const token = localStorage.getItem("token");
-
       const response = await fetch(`${API_BASE_URL}/api/auth/profile`, {
         method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: token ? `Bearer ${token}` : "",
-        },
-        body: JSON.stringify({
-          username: profileForm.username,
-          currentPassword: profileForm.currentPassword,
-          newPassword: profileForm.newPassword,
-        }),
+        headers: { "Content-Type": "application/json", Authorization: token ? `Bearer ${token}` : "" },
+        body: JSON.stringify({ username: profileForm.username, currentPassword: profileForm.currentPassword, newPassword: profileForm.newPassword }),
       });
-
       const data = await response.json();
-
-      if (!response.ok) {
-        setProfileMessage(data.message || "Could not update profile.");
-        return;
-      }
-
-      const nextUser = {
-        ...user,
-        ...data.user,
-        bio: profileForm.bio,
-      };
-
+      if (!response.ok) { setProfileMessage(data.message || "Could not update profile."); return; }
+      const nextUser = { ...user, ...data.user, bio: profileForm.bio };
       localStorage.setItem("user", JSON.stringify(nextUser));
       setUser(nextUser);
-      setProfileForm((current) => ({
-        ...current,
-        currentPassword: "",
-        newPassword: "",
-      }));
+      setProfileForm((current) => ({ ...current, currentPassword: "", newPassword: "" }));
       setProfileMessage("Profile updated successfully.");
       window.dispatchEvent(new Event("auth-changed"));
     } catch (error) {
@@ -329,42 +252,24 @@ function LoginRegister() {
 
   const removeFavoritePlayer = async (favorite: FavoritePlayerRecord) => {
     const token = localStorage.getItem("token");
-    if (!token) {
-      setProfileMessage("You must be logged in to manage favorites.");
-      return;
-    }
-
+    if (!token) { setProfileMessage("You must be logged in to manage favorites."); return; }
     setFavoriteActionKey(`player-${favorite.externalId}`);
     setProfileMessage("");
-
     try {
-      const response = await fetch(
-        `${API_BASE_URL}/api/favorites/players/${encodeURIComponent(favorite.externalId)}`,
-        {
-          method: "DELETE",
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
-      );
+      const response = await fetch(`${API_BASE_URL}/api/favorites/players/${encodeURIComponent(favorite.externalId)}`, {
+        method: "DELETE", headers: { Authorization: `Bearer ${token}` },
+      });
       const data = await response.json();
-
       if (!response.ok) {
         if (isAuthFailure(response.status, data.message)) {
-          clearStoredAuth();
-          setFavoritePlayers([]);
-          setFavoriteTeams([]);
+          clearStoredAuth(); setFavoritePlayers([]); setFavoriteTeams([]);
           setProfileMessage("Your session expired. Log in again to manage favorites.");
           return;
         }
-
         setProfileMessage(data.message || "Could not remove favorite player.");
         return;
       }
-
-      setFavoritePlayers((current) =>
-        current.filter((entry) => entry.externalId !== favorite.externalId)
-      );
+      setFavoritePlayers((current) => current.filter((e) => e.externalId !== favorite.externalId));
       setProfileMessage(data.message || "Favorite player removed.");
       window.dispatchEvent(new Event("auth-changed"));
     } catch (error) {
@@ -377,42 +282,24 @@ function LoginRegister() {
 
   const removeFavoriteTeam = async (favorite: FavoriteTeamRecord) => {
     const token = localStorage.getItem("token");
-    if (!token) {
-      setProfileMessage("You must be logged in to manage favorites.");
-      return;
-    }
-
+    if (!token) { setProfileMessage("You must be logged in to manage favorites."); return; }
     setFavoriteActionKey(`team-${favorite.externalId}`);
     setProfileMessage("");
-
     try {
-      const response = await fetch(
-        `${API_BASE_URL}/api/favorites/teams/${encodeURIComponent(favorite.externalId)}`,
-        {
-          method: "DELETE",
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
-      );
+      const response = await fetch(`${API_BASE_URL}/api/favorites/teams/${encodeURIComponent(favorite.externalId)}`, {
+        method: "DELETE", headers: { Authorization: `Bearer ${token}` },
+      });
       const data = await response.json();
-
       if (!response.ok) {
         if (isAuthFailure(response.status, data.message)) {
-          clearStoredAuth();
-          setFavoritePlayers([]);
-          setFavoriteTeams([]);
+          clearStoredAuth(); setFavoritePlayers([]); setFavoriteTeams([]);
           setProfileMessage("Your session expired. Log in again to manage favorites.");
           return;
         }
-
         setProfileMessage(data.message || "Could not remove favorite team.");
         return;
       }
-
-      setFavoriteTeams((current) =>
-        current.filter((entry) => entry.externalId !== favorite.externalId)
-      );
+      setFavoriteTeams((current) => current.filter((e) => e.externalId !== favorite.externalId));
       setProfileMessage(data.message || "Favorite team removed.");
       window.dispatchEvent(new Event("auth-changed"));
     } catch (error) {
@@ -423,19 +310,42 @@ function LoginRegister() {
     }
   };
 
+  const MODAL_CLASSES = "fixed inset-0 z-[9999] overflow-y-auto bg-black/70 px-4 py-10";
+  const CLOSE_BTN = `
+    shrink-0 border-2 border-black px-3 py-2
+    text-xs font-black uppercase tracking-[0.2em]
+    hover:bg-black hover:text-white
+    focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black focus-visible:ring-offset-1
+    dark:border-zinc-700 dark:hover:bg-zinc-700
+  `;
+
   return (
     <>
       {user ? (
         <div className="flex items-center gap-2">
           <button
             onClick={() => setProfileOpen(true)}
-            className="border-2 border-black bg-white px-3 py-2 text-xs font-black uppercase tracking-[0.2em] transition-all hover:bg-black hover:text-white"
+            aria-label={`Open profile for ${currentUserLabel}`}
+            aria-haspopup="dialog"
+            className="
+              border-2 border-black bg-white px-3 py-2
+              text-xs font-black uppercase tracking-[0.2em]
+              transition-all hover:bg-black hover:text-white
+              focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black focus-visible:ring-offset-1
+              dark:bg-zinc-900 dark:text-zinc-100 dark:border-zinc-700
+            "
           >
             {currentUserLabel}
           </button>
           <button
             onClick={handleLogout}
-            className="border-2 border-black bg-yellow-400 px-4 py-2 text-xs font-black tracking-[0.2em] text-black transition-all hover:bg-white"
+            aria-label="Log out of your account"
+            className="
+              border-2 border-black bg-yellow-400 px-4 py-2
+              text-xs font-black tracking-[0.2em] text-black
+              transition-all hover:bg-white
+              focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black focus-visible:ring-offset-1
+            "
           >
             Logout
           </button>
@@ -444,68 +354,89 @@ function LoginRegister() {
         <div className="flex items-center gap-2">
           <button
             onClick={() => openModal("login")}
-            className="border-2 border-black bg-white px-4 py-2 text-xs font-black tracking-[0.2em] text-black transition-all hover:bg-black hover:text-white"
+            aria-haspopup="dialog"
+            className="
+              border-2 border-black bg-white px-4 py-2
+              text-xs font-black tracking-[0.2em] text-black
+              transition-all hover:bg-black hover:text-white
+              focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black focus-visible:ring-offset-1
+              dark:bg-zinc-900 dark:text-zinc-100 dark:border-zinc-700
+            "
           >
             Login
           </button>
           <button
             onClick={() => openModal("register")}
-            className="border-2 border-black bg-yellow-400 px-4 py-2 text-xs font-black tracking-[0.2em] text-black transition-all hover:bg-white"
+            aria-haspopup="dialog"
+            className="
+              border-2 border-black bg-yellow-400 px-4 py-2
+              text-xs font-black tracking-[0.2em] text-black
+              transition-all hover:bg-white
+              focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black focus-visible:ring-offset-1
+            "
           >
             Register
           </button>
         </div>
       )}
 
+      {/* Auth modal */}
       {authModalOpen
         ? createPortal(
             <div
-              className="fixed inset-0 z-[9999] overflow-y-auto bg-black/70 px-4 py-10"
+              className={MODAL_CLASSES}
+              role="presentation"
               onClick={() => setAuthModalOpen(false)}
             >
               <div
-                className="mx-auto w-full max-w-md border-4 border-black bg-white p-6 text-black shadow-[12px_12px_0_0_rgba(0,0,0,1)]"
+                ref={authModalRef}
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="auth-modal-title"
+                className="mx-auto w-full max-w-md border-4 border-black bg-white p-6 text-black shadow-[12px_12px_0_0_rgba(0,0,0,1)] dark:bg-zinc-900 dark:text-zinc-100"
                 onClick={(event) => event.stopPropagation()}
               >
                 <div className="mb-6 flex items-start justify-between gap-4">
                   <div>
-                    <p className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-500">
-                      Sports Tracker
-                    </p>
-                    <h2 className="text-2xl font-black tracking-tight">
+                    <p className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-500 dark:text-zinc-400">Sports Tracker</p>
+                    <h2 id="auth-modal-title" className="text-2xl font-black tracking-tight">
                       {page === "login" ? "Welcome back" : "Create account"}
                     </h2>
-                    <p className="mt-1 text-xs font-semibold text-slate-500">
-                      Press Escape or click outside this panel to close.
+                    <p className="mt-1 text-xs font-semibold text-slate-500 dark:text-zinc-400">
+                      Press Escape or click outside to close.
                     </p>
                   </div>
                   <button
                     onClick={() => setAuthModalOpen(false)}
-                    aria-label="Close authentication dialog"
-                    className="shrink-0 border-2 border-black px-3 py-2 text-xs font-black uppercase tracking-[0.2em] hover:bg-black hover:text-white"
+                    aria-label="Close login dialog"
+                    className={CLOSE_BTN}
                   >
-                    X
+                    ✕
                   </button>
                 </div>
 
-                <div className="mb-4 flex gap-2">
+                <div className="mb-4 flex gap-2" role="tablist" aria-label="Authentication options">
                   <button
+                    role="tab"
+                    aria-selected={page === "login"}
                     onClick={() => setPage("login")}
-                    className={`flex-1 border-2 px-3 py-2 text-xs font-black uppercase tracking-[0.2em] ${
-                      page === "login"
-                        ? "border-black bg-black text-white"
-                        : "border-slate-200 bg-slate-100"
-                    }`}
+                    className={`
+                      flex-1 border-2 px-3 py-2 text-xs font-black uppercase tracking-[0.2em]
+                      focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black focus-visible:ring-offset-1
+                      ${page === "login" ? "border-black bg-black text-white" : "border-slate-200 bg-slate-100 text-black dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-100"}
+                    `}
                   >
                     Login
                   </button>
                   <button
+                    role="tab"
+                    aria-selected={page === "register"}
                     onClick={() => setPage("register")}
-                    className={`flex-1 border-2 px-3 py-2 text-xs font-black uppercase tracking-[0.2em] ${
-                      page === "register"
-                        ? "border-black bg-yellow-400 text-black"
-                        : "border-slate-200 bg-slate-100"
-                    }`}
+                    className={`
+                      flex-1 border-2 px-3 py-2 text-xs font-black uppercase tracking-[0.2em]
+                      focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black focus-visible:ring-offset-1
+                      ${page === "register" ? "border-black bg-yellow-400 text-black" : "border-slate-200 bg-slate-100 text-black dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-100"}
+                    `}
                   >
                     Register
                   </button>
@@ -522,58 +453,60 @@ function LoginRegister() {
           )
         : null}
 
+      {/* Profile modal */}
       {profileOpen && user
         ? createPortal(
             <div
-              className="fixed inset-0 z-[9999] overflow-y-auto bg-black/70 px-4 py-10"
+              className={MODAL_CLASSES}
+              role="presentation"
               onClick={() => setProfileOpen(false)}
             >
               <div
-                className="mx-auto w-full max-w-2xl border-4 border-black bg-white p-6 text-black shadow-[12px_12px_0_0_rgba(0,0,0,1)]"
+                ref={profileModalRef}
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="profile-modal-title"
+                className="mx-auto w-full max-w-2xl border-4 border-black bg-white p-6 text-black shadow-[12px_12px_0_0_rgba(0,0,0,1)] dark:bg-zinc-900 dark:text-zinc-100"
                 onClick={(event) => event.stopPropagation()}
               >
                 <div className="mb-6 flex items-start justify-between gap-4">
                   <div>
-                    <p className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-500">
-                      Sports Tracker
+                    <p className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-500 dark:text-zinc-400">Sports Tracker</p>
+                    <h2 id="profile-modal-title" className="text-2xl font-black tracking-tight">Your profile</h2>
+                    <p className="mt-1 text-xs font-semibold text-slate-500 dark:text-zinc-400">
+                      Update your name and password, then review your saved favorites.
                     </p>
-                    <h2 className="text-2xl font-black tracking-tight">Your profile</h2>
-                    <p className="mt-1 text-xs font-semibold text-slate-500">
-                      Update your name and password, then review your saved favorites from the live backend.
-                    </p>
-                    <p className="mt-2 inline-block border-2 border-black bg-yellow-400 px-2 py-1 text-[10px] font-black uppercase tracking-[0.2em] text-black">
+                    <span className="mt-2 inline-block border-2 border-black bg-yellow-400 px-2 py-1 text-[10px] font-black uppercase tracking-[0.2em] text-black">
                       Role: {user.role || "user"}
-                    </p>
+                    </span>
                   </div>
                   <button
                     onClick={() => setProfileOpen(false)}
                     aria-label="Close profile dialog"
-                    className="shrink-0 border-2 border-black px-3 py-2 text-xs font-black uppercase tracking-[0.2em] hover:bg-black hover:text-white"
+                    className={CLOSE_BTN}
                   >
-                    X
+                    ✕
                   </button>
                 </div>
 
-                <form className="grid gap-6 md:grid-cols-2" onSubmit={handleProfileSave}>
+                <form className="grid gap-6 md:grid-cols-2" onSubmit={handleProfileSave} noValidate>
                   <div className="space-y-4">
                     <div className="space-y-2">
-                      <label className="block text-xs font-black uppercase tracking-[0.2em]">
-                        Username
-                      </label>
+                      <label htmlFor="profile-username" className="block text-xs font-black uppercase tracking-[0.2em]">Username</label>
                       <input
-                        className="w-full border-2 border-black px-4 py-3 text-sm outline-none focus:bg-yellow-50"
+                        id="profile-username"
+                        className="w-full border-2 border-black px-4 py-3 text-sm outline-none focus:bg-yellow-50 dark:bg-zinc-800 dark:border-zinc-600 dark:focus:bg-zinc-700"
                         name="username"
                         value={profileForm.username}
                         onChange={handleProfileChange}
+                        autoComplete="username"
                       />
                     </div>
-
                     <div className="space-y-2">
-                      <label className="block text-xs font-black uppercase tracking-[0.2em]">
-                        Bio
-                      </label>
+                      <label htmlFor="profile-bio" className="block text-xs font-black uppercase tracking-[0.2em]">Bio</label>
                       <textarea
-                        className="min-h-28 w-full border-2 border-black px-4 py-3 text-sm outline-none focus:bg-yellow-50"
+                        id="profile-bio"
+                        className="min-h-28 w-full border-2 border-black px-4 py-3 text-sm outline-none focus:bg-yellow-50 dark:bg-zinc-800 dark:border-zinc-600 dark:focus:bg-zinc-700"
                         name="bio"
                         value={profileForm.bio}
                         onChange={handleProfileChange}
@@ -584,94 +517,101 @@ function LoginRegister() {
 
                   <div className="space-y-4">
                     <div className="space-y-2">
-                      <label className="block text-xs font-black uppercase tracking-[0.2em]">
-                        Email
-                      </label>
+                      <label htmlFor="profile-email" className="block text-xs font-black uppercase tracking-[0.2em]">Email</label>
                       <input
-                        className="w-full border-2 border-black bg-slate-100 px-4 py-3 text-sm"
+                        id="profile-email"
+                        className="w-full border-2 border-black bg-slate-100 px-4 py-3 text-sm dark:bg-zinc-700 dark:border-zinc-600"
                         value={user.email || ""}
                         disabled
+                        aria-readonly="true"
                       />
                     </div>
-
                     <div className="space-y-2">
-                      <label className="block text-xs font-black uppercase tracking-[0.2em]">
-                        Current Password
-                      </label>
+                      <label htmlFor="profile-current-password" className="block text-xs font-black uppercase tracking-[0.2em]">Current Password</label>
                       <input
-                        className="w-full border-2 border-black px-4 py-3 text-sm outline-none focus:bg-yellow-50"
+                        id="profile-current-password"
+                        className="w-full border-2 border-black px-4 py-3 text-sm outline-none focus:bg-yellow-50 dark:bg-zinc-800 dark:border-zinc-600 dark:focus:bg-zinc-700"
                         name="currentPassword"
                         type="password"
                         value={profileForm.currentPassword}
                         onChange={handleProfileChange}
+                        autoComplete="current-password"
                         placeholder="Required only if changing password"
                       />
                     </div>
-
                     <div className="space-y-2">
-                      <label className="block text-xs font-black uppercase tracking-[0.2em]">
-                        New Password
-                      </label>
+                      <label htmlFor="profile-new-password" className="block text-xs font-black uppercase tracking-[0.2em]">New Password</label>
                       <input
-                        className="w-full border-2 border-black px-4 py-3 text-sm outline-none focus:bg-yellow-50"
+                        id="profile-new-password"
+                        className="w-full border-2 border-black px-4 py-3 text-sm outline-none focus:bg-yellow-50 dark:bg-zinc-800 dark:border-zinc-600 dark:focus:bg-zinc-700"
                         name="newPassword"
                         type="password"
                         value={profileForm.newPassword}
                         onChange={handleProfileChange}
+                        autoComplete="new-password"
                         placeholder="Leave blank to keep current password"
+                        aria-describedby="new-password-hint"
                       />
-                      <p className="text-[11px] font-semibold text-slate-500">
+                      <p id="new-password-hint" className="text-[11px] font-semibold text-slate-500 dark:text-zinc-400">
                         Use 8+ characters with uppercase, lowercase, a number, and a special character.
                       </p>
                     </div>
-
-                    <div className="rounded border border-slate-200 bg-slate-50 p-4 text-sm font-semibold text-slate-600">
-                      Your bio is still session-only for now. Favorites are saved to your account and stay available when you come back.
+                    <div className="rounded border border-slate-200 bg-slate-50 p-4 text-sm font-semibold text-slate-600 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-400">
+                      Your bio is session-only for now. Favorites are saved to your account.
                     </div>
                   </div>
 
                   <div className="md:col-span-2 space-y-6">
                     <button
-                      className="w-full border-2 border-black bg-yellow-400 px-4 py-3 text-xs font-black uppercase tracking-[0.2em] text-black transition-all hover:bg-black hover:text-white"
+                      className="
+                        w-full border-2 border-black bg-yellow-400 px-4 py-3
+                        text-xs font-black uppercase tracking-[0.2em] text-black
+                        transition-all hover:bg-black hover:text-white
+                        focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black focus-visible:ring-offset-1
+                        disabled:cursor-not-allowed disabled:opacity-60
+                      "
                       type="submit"
                       disabled={isSavingProfile}
+                      aria-busy={isSavingProfile}
                     >
-                      {isSavingProfile ? "Saving Profile..." : "Save Profile"}
+                      {isSavingProfile ? "Saving Profile…" : "Save Profile"}
                     </button>
 
                     {profileMessage ? (
-                      <p className="text-sm font-semibold">{profileMessage}</p>
+                      <p role="status" aria-live="polite" className="text-sm font-semibold">
+                        {profileMessage}
+                      </p>
                     ) : null}
 
-                    <section className="space-y-5 border-4 border-black bg-slate-50 p-5">
+                    {/* Favorites section */}
+                    <section aria-labelledby="favorites-section-heading" className="space-y-5 border-4 border-black bg-slate-50 p-5 dark:bg-zinc-800">
                       <div className="flex flex-wrap items-start justify-between gap-3">
                         <div>
-                          <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">
-                            Saved Favorites
-                          </p>
-                          <h3 className="mt-2 text-2xl font-black tracking-tight">
-                            Your Saved Favorites
-                          </h3>
-                          <p className="mt-2 text-sm font-semibold text-slate-600">
-                            Save players and teams from search, then come back here to view or remove them anytime.
+                          <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500 dark:text-zinc-400">Saved Favorites</p>
+                          <h3 id="favorites-section-heading" className="mt-2 text-2xl font-black tracking-tight">Your Saved Favorites</h3>
+                          <p className="mt-2 text-sm font-semibold text-slate-600 dark:text-zinc-400">
+                            Save players and teams from search, then come back here to view or remove them.
                           </p>
                         </div>
                         <button
                           type="button"
-                          onClick={() => {
-                            setProfileOpen(false);
-                            window.location.href = "/search";
-                          }}
-                          className="border-2 border-black bg-white px-4 py-2 text-xs font-black uppercase tracking-[0.2em]"
+                          onClick={() => { setProfileOpen(false); window.location.href = "/search"; }}
+                          className="
+                            border-2 border-black bg-white px-4 py-2
+                            text-xs font-black uppercase tracking-[0.2em]
+                            focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black focus-visible:ring-offset-1
+                            dark:bg-zinc-700 dark:text-zinc-100 dark:border-zinc-600
+                          "
                         >
                           Open Search
                         </button>
                       </div>
 
                       {favoritesLoading ? (
-                        <p className="text-sm font-semibold">Loading saved favorites...</p>
+                        <p aria-live="polite" className="text-sm font-semibold">Loading saved favorites…</p>
                       ) : (
                         <div className="grid gap-6 lg:grid-cols-2">
+                          {/* Fav Players */}
                           <div className="space-y-3">
                             <div className="flex items-center justify-between">
                               <h4 className="text-lg font-black">Favorite Players</h4>
@@ -680,41 +620,49 @@ function LoginRegister() {
                               </span>
                             </div>
                             {favoritePlayers.length ? (
-                              favoritePlayers.map((favorite) => (
-                                <article key={favorite.externalId} className="flex gap-3 border-2 border-black bg-white p-3">
-                                  <img
-                                    src={favorite.imageUrl || buildFallbackImage(favorite.playerName || "PLAYER")}
-                                    alt={favorite.playerName}
-                                    className="h-20 w-20 border-2 border-black object-cover"
-                                  />
-                                  <div className="flex flex-1 flex-col justify-between gap-2">
-                                    <div>
-                                      <p className="font-black">{favorite.playerName}</p>
-                                      <p className="text-sm font-semibold text-slate-600">
-                                        {favorite.teamName || "Club not listed"}
-                                      </p>
-                                      <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">
-                                        {favorite.position || favorite.sport || "Player"}
-                                      </p>
+                              <ul className="space-y-3" aria-label="Favorite players list">
+                                {favoritePlayers.map((favorite) => (
+                                  <li key={favorite.externalId} className="flex gap-3 border-2 border-black bg-white p-3 dark:bg-zinc-900 dark:border-zinc-700">
+                                    <img
+                                      src={favorite.imageUrl || buildFallbackImage(favorite.playerName || "PLAYER")}
+                                      alt={`${favorite.playerName} photo`}
+                                      className="h-20 w-20 border-2 border-black object-cover"
+                                    />
+                                    <div className="flex flex-1 flex-col justify-between gap-2">
+                                      <div>
+                                        <p className="font-black">{favorite.playerName}</p>
+                                        <p className="text-sm font-semibold text-slate-600 dark:text-zinc-400">{favorite.teamName || "Club not listed"}</p>
+                                        <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500 dark:text-zinc-500">
+                                          {favorite.position || favorite.sport || "Player"}
+                                        </p>
+                                      </div>
+                                      <button
+                                        type="button"
+                                        onClick={() => removeFavoritePlayer(favorite)}
+                                        disabled={favoriteActionKey === `player-${favorite.externalId}`}
+                                        aria-label={`Remove ${favorite.playerName} from favorites`}
+                                        className="
+                                          w-fit border-2 border-black bg-white px-3 py-1
+                                          text-[10px] font-black uppercase tracking-[0.2em]
+                                          focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black
+                                          disabled:cursor-not-allowed disabled:opacity-50
+                                          dark:bg-zinc-800 dark:text-zinc-100 dark:border-zinc-600
+                                        "
+                                      >
+                                        {favoriteActionKey === `player-${favorite.externalId}` ? "Removing…" : "Remove Favorite"}
+                                      </button>
                                     </div>
-                                    <button
-                                      type="button"
-                                      onClick={() => removeFavoritePlayer(favorite)}
-                                      disabled={favoriteActionKey === `player-${favorite.externalId}`}
-                                      className="w-fit border-2 border-black bg-white px-3 py-1 text-[10px] font-black uppercase tracking-[0.2em] disabled:cursor-not-allowed disabled:opacity-50"
-                                    >
-                                      {favoriteActionKey === `player-${favorite.externalId}` ? "Removing..." : "Remove Favorite"}
-                                    </button>
-                                  </div>
-                                </article>
-                              ))
+                                  </li>
+                                ))}
+                              </ul>
                             ) : (
-                              <p className="border-2 border-dashed border-slate-300 bg-white p-4 text-sm font-semibold text-slate-500">
+                              <p className="border-2 border-dashed border-slate-300 bg-white p-4 text-sm font-semibold text-slate-500 dark:border-zinc-600 dark:bg-zinc-900 dark:text-zinc-400">
                                 No favorite players saved yet.
                               </p>
                             )}
                           </div>
 
+                          {/* Fav Teams */}
                           <div className="space-y-3">
                             <div className="flex items-center justify-between">
                               <h4 className="text-lg font-black">Favorite Teams</h4>
@@ -723,36 +671,43 @@ function LoginRegister() {
                               </span>
                             </div>
                             {favoriteTeams.length ? (
-                              favoriteTeams.map((favorite) => (
-                                <article key={favorite.externalId} className="flex gap-3 border-2 border-black bg-white p-3">
-                                  <img
-                                    src={favorite.badgeUrl || buildFallbackImage(favorite.teamName || "TEAM")}
-                                    alt={favorite.teamName}
-                                    className="h-20 w-20 border-2 border-black object-contain bg-white p-2"
-                                  />
-                                  <div className="flex flex-1 flex-col justify-between gap-2">
-                                    <div>
-                                      <p className="font-black">{favorite.teamName}</p>
-                                      <p className="text-sm font-semibold text-slate-600">
-                                        {favorite.leagueName || "League not listed"}
-                                      </p>
-                                      <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">
-                                        {favorite.country || "Club"}
-                                      </p>
+                              <ul className="space-y-3" aria-label="Favorite teams list">
+                                {favoriteTeams.map((favorite) => (
+                                  <li key={favorite.externalId} className="flex gap-3 border-2 border-black bg-white p-3 dark:bg-zinc-900 dark:border-zinc-700">
+                                    <img
+                                      src={favorite.badgeUrl || buildFallbackImage(favorite.teamName || "TEAM")}
+                                      alt={`${favorite.teamName} badge`}
+                                      className="h-20 w-20 border-2 border-black object-contain bg-white p-2"
+                                    />
+                                    <div className="flex flex-1 flex-col justify-between gap-2">
+                                      <div>
+                                        <p className="font-black">{favorite.teamName}</p>
+                                        <p className="text-sm font-semibold text-slate-600 dark:text-zinc-400">{favorite.leagueName || "League not listed"}</p>
+                                        <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500 dark:text-zinc-500">
+                                          {favorite.country || "Club"}
+                                        </p>
+                                      </div>
+                                      <button
+                                        type="button"
+                                        onClick={() => removeFavoriteTeam(favorite)}
+                                        disabled={favoriteActionKey === `team-${favorite.externalId}`}
+                                        aria-label={`Remove ${favorite.teamName} from favorites`}
+                                        className="
+                                          w-fit border-2 border-black bg-white px-3 py-1
+                                          text-[10px] font-black uppercase tracking-[0.2em]
+                                          focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black
+                                          disabled:cursor-not-allowed disabled:opacity-50
+                                          dark:bg-zinc-800 dark:text-zinc-100 dark:border-zinc-600
+                                        "
+                                      >
+                                        {favoriteActionKey === `team-${favorite.externalId}` ? "Removing…" : "Remove Favorite"}
+                                      </button>
                                     </div>
-                                    <button
-                                      type="button"
-                                      onClick={() => removeFavoriteTeam(favorite)}
-                                      disabled={favoriteActionKey === `team-${favorite.externalId}`}
-                                      className="w-fit border-2 border-black bg-white px-3 py-1 text-[10px] font-black uppercase tracking-[0.2em] disabled:cursor-not-allowed disabled:opacity-50"
-                                    >
-                                      {favoriteActionKey === `team-${favorite.externalId}` ? "Removing..." : "Remove Favorite"}
-                                    </button>
-                                  </div>
-                                </article>
-                              ))
+                                  </li>
+                                ))}
+                              </ul>
                             ) : (
-                              <p className="border-2 border-dashed border-slate-300 bg-white p-4 text-sm font-semibold text-slate-500">
+                              <p className="border-2 border-dashed border-slate-300 bg-white p-4 text-sm font-semibold text-slate-500 dark:border-zinc-600 dark:bg-zinc-900 dark:text-zinc-400">
                                 No favorite teams saved yet.
                               </p>
                             )}
