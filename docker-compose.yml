@@ -4,13 +4,13 @@ services:
     container_name: sportstracker-postgres
     restart: unless-stopped
     environment:
-      POSTGRES_DB: sportstracker
+      POSTGRES_DB: soccer_stats_auth
       POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD before running docker compose}
     ports:
-      - "5432:5432"
+      - "5433:5432"
     volumes:
-      - sportstracker-postgres-data:/var/lib/postgresql/data
+      - soccer-stats-auth-postgres-data:/var/lib/postgresql/data
 
 volumes:
-  sportstracker-postgres-data:
+  soccer-stats-auth-postgres-data:
