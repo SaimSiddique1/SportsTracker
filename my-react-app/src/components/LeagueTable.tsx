@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { getLeagueTable as getSportsDbLeagueTable } from "../sportsdbaAPI";
+import { getExpandedLeagueTable } from "../sportsdbaAPI";
 
 type LeagueOption = {
   id: string;
@@ -13,6 +13,7 @@ type StandingRow = {
   strTeam?: string;
   intPlayed?: string | number;
   intPoints?: string | number;
+  isRosterOnly?: boolean;
 };
 
 const leagues: LeagueOption[] = [
@@ -33,8 +34,8 @@ function LeagueTable() {
       setError("");
 
       try {
-        const table = await getSportsDbLeagueTable(currLeague.id, currLeague.season);
-        setTeams(Array.isArray(table) ? table.slice(0, 5) : []);
+        const table = await getExpandedLeagueTable(currLeague.id, currLeague.season, currLeague.name);
+        setTeams(Array.isArray(table) ? table : []);
       } catch (err) {
         console.error("League table error:", err);
         setTeams([]);
@@ -65,17 +66,17 @@ function LeagueTable() {
         ))}
       </div>
 
-      <div className="space-y-2">
-        <div className="grid grid-cols-6 px-2 text-[10px] font-black opacity-40">
+      <div className="max-h-[32rem] overflow-y-auto border border-slate-100 dark:border-zinc-800">
+        <div className="sticky top-0 z-10 grid grid-cols-6 border-b border-slate-100 bg-white px-2 py-2 text-[10px] font-black opacity-80 dark:border-zinc-800 dark:bg-zinc-900">
           <span className="col-span-3 font-black">Team</span>
           <span>Played</span>
           <span>Points</span>
         </div>
 
         {loading ? (
-          <p className="px-2 text-sm font-semibold">Loading standings...</p>
+          <p className="px-2 py-3 text-sm font-semibold">Loading standings...</p>
         ) : error ? (
-          <p className="px-2 text-sm font-semibold text-red-600">{error}</p>
+          <p className="px-2 py-3 text-sm font-semibold text-red-600">{error}</p>
         ) : (
           teams.map((team) => (
             <div
@@ -88,6 +89,11 @@ function LeagueTable() {
               </div>
               <span className="opacity-60">{team.intPlayed}</span>
               <span className="font-black">{team.intPoints}</span>
+              {team.isRosterOnly ? (
+                <span className="col-span-6 mt-1 text-[10px] font-black uppercase tracking-[0.18em] text-slate-400">
+                  Standings stats unavailable from provider
+                </span>
+              ) : null}
             </div>
           ))
         )}

@@ -7,9 +7,10 @@ interface PlayerInfo {
     assists: number;
     imageUrl: string;
     onCompare?: () => void;
+    onViewDetails?: () => void;
 }
 
-function PlayerCard({name, team, goals, assists, imageUrl, onCompare} : PlayerInfo) {
+function PlayerCard({name, team, goals, assists, imageUrl, onCompare, onViewDetails} : PlayerInfo) {
     const fallbackImage = useMemo(
         () => `data:image/svg+xml;utf8,${encodeURIComponent(`
             <svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256">
@@ -26,7 +27,22 @@ function PlayerCard({name, team, goals, assists, imageUrl, onCompare} : PlayerIn
     const [currentImage, setCurrentImage] = useState(imageUrl || fallbackImage);
 
     return (
-        <div className="bg-white dark:bg-zinc-900 border-2 border-black dark:border-zinc-800 transition-all">
+        <div
+            className={`bg-white dark:bg-zinc-900 border-2 border-black dark:border-zinc-800 transition-all ${onViewDetails ? "cursor-pointer hover:-translate-y-0.5 hover:shadow-[6px_6px_0_0_rgba(0,0,0,1)]" : ""}`}
+            onClick={onViewDetails}
+            role={onViewDetails ? "button" : undefined}
+            tabIndex={onViewDetails ? 0 : undefined}
+            onKeyDown={(event) => {
+                if (!onViewDetails) {
+                    return;
+                }
+
+                if (event.key === "Enter" || event.key === " ") {
+                    event.preventDefault();
+                    onViewDetails();
+                }
+            }}
+        >
             <div className="grid grid-cols-[8rem_1fr] gap-4 p-6">
                 <img
                     src={currentImage}
@@ -60,7 +76,10 @@ function PlayerCard({name, team, goals, assists, imageUrl, onCompare} : PlayerIn
 
             <button
                 className="w-full border-t-2 border-black bg-yellow-400 text-black py-3 text-[10px] font-black tracking-widest transition-all hover:bg-black hover:text-white"
-                onClick={onCompare}
+                onClick={(event) => {
+                    event.stopPropagation();
+                    onCompare?.();
+                }}
                 type="button"
                 disabled={!onCompare}
             >
