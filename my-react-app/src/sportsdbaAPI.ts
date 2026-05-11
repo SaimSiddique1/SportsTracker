@@ -2,6 +2,7 @@ import axios from "axios";
 
 const API_KEY = import.meta.env.VITE_SPORTSDB_API_KEY || "123";
 const BASE_URL = `https://www.thesportsdb.com/api/v1/json/${API_KEY}`;
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:5001";
 
 // Axios instance
 const api = axios.create({
@@ -58,6 +59,23 @@ HELPERS
 // Prevent null crashes
 const safeArray = (data: any) => (Array.isArray(data) ? data : []);
 
+const fetchBackendTeams = async (path: string, params: Record<string, string>) => {
+  const url = new URL(`${API_BASE_URL}/api/sportsdb/${path}`);
+
+  Object.entries(params).forEach(([key, value]) => {
+    url.searchParams.set(key, value);
+  });
+
+  const response = await fetch(url);
+  const data = await response.json().catch(() => ({}));
+
+  if (!response.ok) {
+    throw new Error(data.message || "SportsDB backend request failed.");
+  }
+
+  return safeArray(data.teams);
+};
+
 // Optional: Common league IDs (very useful for your UI)
 export const LEAGUES = {
   EPL: "4328",
@@ -72,10 +90,7 @@ API FUNCTIONS
 // Get all teams in a league (by name)
 export const getTeamsByLeague = async (leagueName: string) => {
   try {
-    const response = await api.get(
-      `/search_all_teams.php?l=${encodeURIComponent(leagueName)}`
-    );
-    return safeArray(response.data.teams);
+    return await fetchBackendTeams("teams-by-league", { league: leagueName });
   } catch (err: any) {
     console.error("getTeamsByLeague failed:", err.message);
     return [];
@@ -83,8 +98,12 @@ export const getTeamsByLeague = async (leagueName: string) => {
 };
 
 export const searchTeam = async (teamName: string) => {
-  const response = await api.get(`/searchteams.php?t=${encodeURIComponent(teamName)}`);
-  return response.data.teams;
+  try {
+    return await fetchBackendTeams("search-teams", { q: teamName });
+  } catch (err: any) {
+    console.error("searchTeam failed:", err.message);
+    return [];
+  }
 };
 
 export const getLeagueTable = async (leagueId: string, season: string) => {

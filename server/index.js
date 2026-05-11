@@ -11,6 +11,7 @@ const authRoutes = require("./routes/auth");
 const adminRoutes = require("./routes/admin");
 const systemConfigRoutes = require("./routes/systemConfig");
 const favoriteRoutes = require("./routes/favorites");
+const sportsDbRoutes = require("./routes/sportsdb");
 const { store } = require("./store");
 
 const app = express();
@@ -22,6 +23,7 @@ app.use("/api/auth", authRoutes);
 app.use("/api/admin", adminRoutes);
 app.use("/api/system-config", systemConfigRoutes);
 app.use("/api/favorites", favoriteRoutes);
+app.use("/api/sportsdb", sportsDbRoutes);
 
 app.get("/", (req, res) => {
   res.send("Auth API running");
