@@ -253,17 +253,24 @@ function AppLayout() {
       >
         <button
           onClick={() => navigate("/")}
-          className="flex items-center gap-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-yellow-400 focus-visible:ring-offset-2"
+          className="group flex items-center gap-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-yellow-400 focus-visible:ring-offset-2"
           aria-label="Sports Tracker — go to home page"
         >
           <div
             aria-hidden="true"
-            className="flex h-12 w-12 items-center justify-center border-2 border-black bg-yellow-400 text-2xl font-black text-black"
+            className="flex h-12 w-12 items-center justify-center border-2 border-black bg-yellow-400 text-2xl font-black text-black transition-transform duration-150 group-hover:scale-110 group-active:scale-95"
           >
             ST
           </div>
           <span className="text-3xl font-black tracking-tighter">
-            Sports <span className="text-yellow-500">Tracker</span>
+            Sports{" "}
+            <span className="relative text-yellow-500">
+              Tracker
+              <span
+                aria-hidden="true"
+                className="absolute bottom-0 left-0 h-[2px] w-0 bg-yellow-500 transition-all duration-300 group-hover:w-full"
+              />
+            </span>
           </span>
         </button>
 
@@ -339,24 +346,24 @@ function AppLayout() {
                 >
                   <section aria-label="Home hero and featured players" className="space-y-12 lg:col-span-8">
                     {/* Hero */}
-                    <div className="relative overflow-hidden border border-slate-800 bg-zinc-900 p-12 text-white">
+                    <div className="relative overflow-hidden border border-slate-200 bg-white dark:border-slate-800 dark:bg-zinc-900 p-12 text-slate-900 dark:text-white">
                       <div className="relative z-10">
                         <h1 className="mb-4 text-5xl font-black leading-tight tracking-tighter">
                           {renderHeroHeadline()}
                         </h1>
-                        <p className="mb-8 max-w-sm text-[10px] font-bold tracking-widest text-slate-400">
+                        <p className="mb-8 max-w-sm text-[10px] font-bold tracking-widest text-slate-500 dark:text-slate-400">
                           {homeHeroSubtext}
                         </p>
                         <div className="flex gap-4">
                           <button
                             onClick={() => navigate("/search?q=Lionel%20Messi&mode=players")}
-                            className="bg-yellow-400 px-6 py-3 text-xs font-black tracking-widest text-black transition-colors hover:bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-yellow-400 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-900"
+                            className="bg-yellow-400 px-6 py-3 text-xs font-black tracking-widest text-black transition-colors hover:bg-yellow-500 dark:hover:bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-yellow-400 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-100 dark:focus-visible:ring-offset-zinc-900"
                           >
                             Search Players
                           </button>
                           <button
                             onClick={() => navigate("/search?q=English%20Premier%20League&mode=teams")}
-                            className="border border-white/20 bg-white/10 px-8 py-3 text-xs font-black tracking-widest transition-colors hover:bg-white/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-900"
+                            className="border border-slate-300 bg-slate-200 px-8 py-3 text-xs font-black tracking-widest text-slate-900 transition-colors hover:bg-slate-300 dark:border-white/20 dark:bg-white/10 dark:text-white dark:hover:bg-white/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400 dark:focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-slate-100 dark:focus-visible:ring-offset-zinc-900"
                           >
                             Search Teams
                           </button>

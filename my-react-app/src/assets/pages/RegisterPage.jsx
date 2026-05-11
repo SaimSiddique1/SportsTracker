@@ -2,6 +2,21 @@ import { useState } from "react";
 
 const DEFAULT_API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:5001";
 
+const INPUT_CLASS = `
+  w-full border-2 border-black px-4 py-3 text-sm outline-none
+  focus:bg-yellow-50 focus-visible:ring-2 focus-visible:ring-yellow-400 focus-visible:ring-offset-1
+  dark:bg-zinc-800 dark:border-zinc-600 dark:text-zinc-100
+  dark:placeholder:text-zinc-500 dark:focus:bg-zinc-700
+`;
+
+const PRIMARY_BTN = `
+  w-full border-2 border-black bg-yellow-400 px-4 py-3
+  text-xs font-black uppercase tracking-[0.2em] text-black
+  transition-all hover:bg-black hover:text-white
+  focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-yellow-400 focus-visible:ring-offset-1
+  disabled:cursor-not-allowed disabled:opacity-60
+`;
+
 function RegisterPage({ apiBaseUrl = DEFAULT_API_BASE_URL }) {
   const [formData, setFormData] = useState({
     username: "",
@@ -10,29 +25,30 @@ function RegisterPage({ apiBaseUrl = DEFAULT_API_BASE_URL }) {
   });
 
   const [message, setMessage] = useState("");
+  const [messageType, setMessageType] = useState("info");
   const [isLoading, setIsLoading] = useState(false);
+
+  const showMessage = (text, type = "info") => {
+    setMessage(text);
+    setMessageType(type);
+  };
 
   const validatePassword = (password) => {
     if (password.length < 8) {
       return "Weak password: it must be at least 8 characters long.";
     }
-
     if (!/[A-Z]/.test(password)) {
       return "Weak password: include at least one uppercase letter.";
     }
-
     if (!/[a-z]/.test(password)) {
       return "Weak password: include at least one lowercase letter.";
     }
-
     if (!/[0-9]/.test(password)) {
       return "Weak password: include at least one number.";
     }
-
     if (!/[^A-Za-z0-9]/.test(password)) {
       return "Weak password: include at least one special character.";
     }
-
     return "";
   };
 
@@ -46,11 +62,11 @@ function RegisterPage({ apiBaseUrl = DEFAULT_API_BASE_URL }) {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setIsLoading(true);
-    setMessage("");
+    showMessage("");
 
     const passwordError = validatePassword(formData.password);
     if (passwordError) {
-      setMessage(passwordError);
+      showMessage(passwordError, "error");
       setIsLoading(false);
       return;
     }
@@ -65,10 +81,13 @@ function RegisterPage({ apiBaseUrl = DEFAULT_API_BASE_URL }) {
       });
 
       const data = await response.json();
-      setMessage(data.message || "Registration complete.");
+      showMessage(data.message || "Registration complete.", response.ok ? "info" : "error");
     } catch (error) {
       console.error("Register error:", error);
-      setMessage("Could not connect to server. Check VITE_API_BASE_URL and make sure the backend is running.");
+      showMessage(
+        "Could not connect to server. Check VITE_API_BASE_URL and make sure the backend is running.",
+        "error"
+      );
     } finally {
       setIsLoading(false);
     }
@@ -76,63 +95,85 @@ function RegisterPage({ apiBaseUrl = DEFAULT_API_BASE_URL }) {
 
   return (
     <div className="space-y-4">
-      <p className="text-sm font-semibold text-slate-600">
+      <p className="text-sm font-semibold text-slate-600 dark:text-zinc-400">
         Create an account to save favorites and personalize the app later.
       </p>
 
-      <form className="space-y-4" onSubmit={handleSubmit}>
+      <form className="space-y-4" onSubmit={handleSubmit} noValidate aria-label="Register form">
         <div className="space-y-2">
-          <label className="block text-xs font-black uppercase tracking-[0.2em]">
+          <label htmlFor="register-username" className="block text-xs font-black uppercase tracking-[0.2em]">
             Username
           </label>
           <input
-            className="w-full border-2 border-black px-4 py-3 text-sm outline-none focus:bg-yellow-50"
+            id="register-username"
+            className={INPUT_CLASS}
             type="text"
             name="username"
             value={formData.username}
             onChange={handleChange}
+            autoComplete="username"
+            required
+            aria-required="true"
           />
         </div>
 
         <div className="space-y-2">
-          <label className="block text-xs font-black uppercase tracking-[0.2em]">
+          <label htmlFor="register-email" className="block text-xs font-black uppercase tracking-[0.2em]">
             Email
           </label>
           <input
-            className="w-full border-2 border-black px-4 py-3 text-sm outline-none focus:bg-yellow-50"
+            id="register-email"
+            className={INPUT_CLASS}
             type="email"
             name="email"
             value={formData.email}
             onChange={handleChange}
+            autoComplete="email"
+            required
+            aria-required="true"
           />
         </div>
 
         <div className="space-y-2">
-          <label className="block text-xs font-black uppercase tracking-[0.2em]">
+          <label htmlFor="register-password" className="block text-xs font-black uppercase tracking-[0.2em]">
             Password
           </label>
           <input
-            className="w-full border-2 border-black px-4 py-3 text-sm outline-none focus:bg-yellow-50"
+            id="register-password"
+            className={INPUT_CLASS}
             type="password"
             name="password"
             value={formData.password}
             onChange={handleChange}
+            autoComplete="new-password"
+            required
+            aria-required="true"
+            aria-describedby="register-password-hint"
           />
-          <p className="text-[11px] font-semibold text-slate-500">
+          <p id="register-password-hint" className="text-[11px] font-semibold text-slate-500 dark:text-zinc-400">
             Use 8+ characters with uppercase, lowercase, a number, and a special character.
           </p>
         </div>
 
         <button
-          className="w-full border-2 border-black bg-yellow-400 px-4 py-3 text-xs font-black uppercase tracking-[0.2em] text-black transition-all hover:bg-black hover:text-white"
+          className={PRIMARY_BTN}
           type="submit"
           disabled={isLoading}
+          aria-busy={isLoading}
         >
           {isLoading ? "Registering..." : "Register"}
         </button>
       </form>
 
-      {message ? <p className="text-sm font-semibold">{message}</p> : null}
+      {message ? (
+        <p
+          role="status"
+          aria-live="polite"
+          className={`text-sm font-semibold ${messageType === "error" ? "text-red-600 dark:text-red-400" : "text-slate-800 dark:text-zinc-200"}`}
+        >
+          {message}
+        </p>
+      ) : null}
     </div>
   );
 }
