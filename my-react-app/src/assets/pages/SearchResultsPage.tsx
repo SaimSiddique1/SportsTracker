@@ -210,7 +210,7 @@ function PlayerComparisonPanel({ selectedPlayers, onRemovePlayer, onResetCompari
           className="
             border-2 border-black bg-yellow-300 px-3 py-1
             text-xs font-black uppercase tracking-[0.2em]
-            focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black focus-visible:ring-offset-1
+            focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black focus-visible:ring-offset-1 dark:text-black
           "
         >
           Clear
@@ -428,7 +428,7 @@ function DetailsModal({ modal, onClose, onOpenPlayer, onOpenTeamByName }: Detail
                 className="
                   mt-4 border-2 border-black bg-yellow-300 px-3 py-2
                   text-[10px] font-black uppercase tracking-[0.2em]
-                  focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black
+                  focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black dark:text-black
                 "
               >
                 View Team Players
@@ -956,7 +956,7 @@ function SearchResultsPage() {
                                 border-2 border-black bg-yellow-300 px-3 py-1
                                 text-[10px] font-black uppercase tracking-[0.2em]
                                 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black focus-visible:ring-offset-1
-                                disabled:cursor-not-allowed disabled:opacity-50
+                                disabled:cursor-not-allowed disabled:opacity-50 dark:text-black
                               "
                             >
                               {selectedComparePlayers.some((s) => s.idPlayer === player.idPlayer) ? "Selected" : "Add to Compare"}

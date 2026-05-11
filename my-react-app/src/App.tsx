@@ -371,7 +371,7 @@ function AppLayout() {
                       </div>
                     </div>
 
-                    <HomePage />
+                    {/*<HomePage />*/}
 
                     {/* Trending Players */}
                     <section aria-labelledby="trending-heading">
