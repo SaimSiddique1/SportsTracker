@@ -1,100 +1,82 @@
-# SportsTracker
+# Sports Tracker
 
-SportsTracker is a React + Vite frontend with an Express backend. The backend can run against PostgreSQL for normal development, or it can fall back to a local JSON demo store when `DATABASE_URL` is not set.
+## Project Description
 
-## Requirements
+Sports Tracker is a full-stack web application designed to centralize sports data in one platform. The application allows users to search for teams, players, and competitions, view sports statistics, access schedules, and interact with user-based features such as authentication and favorites.
 
-- Node.js LTS
+The purpose of this project is to make sports information easier to access by combining data from external sports APIs into a single application. Instead of requiring users to visit multiple websites for player statistics, team information, schedules, or competition data, Sports Tracker provides a more organized and searchable interface.
+
+This project was developed using an Agile/Scrum workflow across three sprints. The team used Jira to organize Epics, Tasks, and Subtasks, and GitHub was used for version control, branching, commits, and pull requests.
+
+---
+
+## Features
+
+- Search for players, teams, and competitions
+- View player and team statistics
+- View team or competition schedules
+- User registration and login
+- Save favorite teams or players
+- Admin-related functionality
+- API error handling
+- Empty result handling
+- Soccer-focused filtering
+- Authentication and search testing
+
+---
+
+## Technologies Used
+
+### Frontend
+- React
+- JavaScript
+- HTML
+- CSS
+- React Router
+
+### Backend
+- Node.js
+- Express.js
+
+### Database / Authentication
+- Supabase
+
+### APIs
+- TheSportsDB API
+- Football API / Football98 API
+
+### Development Tools
+- GitHub
+- Jira
+- Postman
+- Visual Studio Code
 - npm
-- PostgreSQL 14+ for the real database path
-- Docker Desktop, optional, if you want the included PostgreSQL container
 
-## First-Time Setup
+---
 
-Install dependencies from the repo root:
+## Project Structure
 
-```sh
-npm run install:all
-```
+The repository may include frontend and backend folders depending on the final team organization.
 
-Create local env files from the templates:
+Common structure:
 
-```sh
-copy server\.env.example server\.env
-copy my-react-app\.env.example my-react-app\.env
-```
-
-On macOS/Linux, use `cp` instead of `copy`.
-
-## Database Setup
-
-If you use Docker, start the included PostgreSQL container:
-
-```sh
-docker compose up -d postgres
-```
-
-Or create a local PostgreSQL database named `sportstracker` yourself:
-
-```sql
-CREATE DATABASE sportstracker;
-```
-
-Then set `DATABASE_URL` in `server/.env`. The default template is:
-
-```env
-DATABASE_URL=postgresql://postgres:postgres@localhost:5432/sportstracker
-```
-
-Update the username and password to match your local PostgreSQL account. When the backend starts, it creates and updates the application tables automatically.
-
-If `DATABASE_URL` is removed or left unset, the backend uses `server/data/app-data.json` as a demo store. That is useful for quick local testing, but PostgreSQL is the intended database setup.
-
-## Environment Variables
-
-Frontend file: `my-react-app/.env`
-
-```env
-VITE_API_BASE_URL=http://localhost:5001
-VITE_SOCCER_API_KEY=your_rapidapi_key_here
-VITE_SPORTSDB_API_KEY=your_sportsdb_api_key_here
-```
-
-Server file: `server/.env`
-
-```env
-PORT=5001
-CLIENT_BASE_URL=http://localhost:5173
-DATABASE_URL=postgresql://postgres:postgres@localhost:5432/sportstracker
-JWT_SECRET=replace_with_a_long_random_secret
-SMTP_HOST=smtp.gmail.com
-SMTP_PORT=587
-SMTP_SECURE=false
-SMTP_USER=sportstrackercmsc447@gmail.com
-SMTP_PASS=your_gmail_app_password_here
-SMTP_FROM="Sports Tracker <sportstrackercmsc447@gmail.com>"
-APP_NAME=Sports Tracker
-```
-
-Do not commit real `.env` files or real SMTP passwords.
-
-## Running The App
-
-Start the backend:
-
-```sh
-npm run dev:server
-```
-
-Start the frontend in a second terminal:
-
-```sh
-npm run dev:client
-```
-
-The frontend runs at `http://localhost:5173`, and the backend runs at `http://localhost:5001`.
-
-The first registered account becomes an admin account automatically.
+```text
+Sports-Tracker/
+│
+├── frontend/
+│   ├── src/
+│   ├── public/
+│   ├── package.json
+│   └── .env.example
+│
+├── backend/
+│   ├── routes/
+│   ├── controllers/
+│   ├── server.js
+│   ├── package.json
+│   └── .env.example
+│
+└── README.md
 
 ## Useful Commands
 
@@ -102,3 +84,7 @@ The first registered account becomes an admin account automatically.
 npm run build
 npm run test
 ```
+
+## Important Note
+
+This repository does not include real API keys or secret credentials. To run the project locally, create your own `.env` file using the provided `.env.example` format.
